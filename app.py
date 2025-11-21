@@ -622,38 +622,67 @@ def interviews_list():
 @app.route('/interviews/new', methods=['GET', 'POST'])
 @login_required
 def new_interview():
-    """Agendar nova entrevista"""
-    if request.method == 'POST':
-        try:
-            interview = Interview(
-                candidate_id=request.form.get('candidate_id'),
-                job_id=request.form.get('job_id'),
-                title=request.form.get('title'),
-                description=request.form.get('description'),
-                start_time=datetime.fromisoformat(request.form.get('start_time')),
-                end_time=datetime.fromisoformat(request.form.get('end_time')),
-                meeting_link=request.form.get('meeting_link'),
-                notes=request.form.get('notes'),
-                created_by=current_user.id
-            )
-            
-            db.session.add(interview)
-            db.session.commit()
-            
-            flash('Entrevista agendada com sucesso!', 'success')
-            return redirect(url_for('calendar'))
-            
-        except Exception as e:
-            flash(f'Erro ao agendar entrevista: {str(e)}', 'danger')
-    
-    # Dados para o formulário
-    candidates = Candidate.query.all()
-    jobs = Job.query.all()
-    
-    return render_template('new_interview.html', 
-                         candidates=candidates, 
-                         jobs=jobs)
+    """Agendar nova entrevista - Versão segura"""
+    try:
+        if request.method == 'POST':
+            try:
+                # Validação básica dos dados
+                candidate_id = request.form.get('candidate_id')
+                job_id = request.form.get('job_id')
+                title = request.form.get('title')
+                start_time = request.form.get('start_time')
+                end_time = request.form.get('end_time')
+                meeting_link = request.form.get('meeting_link')
 
+                if not all([candidate_id, job_id, title, start_time, end_time]):
+                    flash('Todos os campos obrigatórios devem ser preenchidos!', 'danger')
+                    return redirect(url_for('new_interview'))
+
+                # Criar entrevista
+                interview = Interview(
+                    candidate_id=int(candidate_id),
+                    job_id=int(job_id),
+                    title=title,
+                    description=request.form.get('description', ''),
+                    start_time=datetime.fromisoformat(start_time),
+                    end_time=datetime.fromisoformat(end_time),
+                    meeting_link=meeting_link or '',
+                    notes=request.form.get('notes', ''),
+                    created_by=current_user.id
+                )
+                
+                db.session.add(interview)
+                db.session.commit()
+                
+                flash('Entrevista agendada com sucesso!', 'success')
+                return redirect(url_for('calendar'))
+                
+            except ValueError as e:
+                flash('Erro nos dados do formulário. Verifique as datas e horários.', 'danger')
+                print(f"❌ Erro de validação: {e}")
+            except Exception as e:
+                flash(f'Erro ao agendar entrevista: {str(e)}', 'danger')
+                print(f"❌ Erro ao criar entrevista: {e}")
+        
+        # Dados para o formulário (GET) - com tratamento de erro
+        try:
+            candidates = Candidate.query.all()
+            jobs = Job.query.all()
+        except Exception as e:
+            print(f"❌ Erro ao carregar dados do formulário: {e}")
+            candidates = []
+            jobs = []
+            flash('Erro ao carregar dados. Tente novamente.', 'warning')
+        
+        return render_template('new_interview.html', 
+                             candidates=candidates, 
+                             jobs=jobs)
+                             
+    except Exception as e:
+        print(f"❌ Erro crítico em new_interview: {e}")
+        flash('Erro interno do servidor. Tente novamente.', 'danger')
+        return redirect(url_for('calendar'))
+    
 @app.route('/interviews/<int:interview_id>/delete', methods=['POST'])
 @login_required
 def delete_interview(interview_id):

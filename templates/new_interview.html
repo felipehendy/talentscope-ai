@@ -4,18 +4,26 @@
 
 {% block content %}
 <div class="container-fluid">
+    <!-- Cabeçalho -->
     <div class="page-header">
         <h1>
-            <i class="fas fa-plus-circle me-2 text-primary"></i>
+            <i class="fas fa-calendar-plus me-2 text-primary"></i>
             Nova Entrevista
         </h1>
-        <p class="lead mb-0">
-            {% if candidate %}
-            Agendando com: <strong>{{ candidate.name }}</strong>
-            {% else %}
-            Agende uma nova entrevista
-            {% endif %}
-        </p>
+        <p class="lead mb-0">Agende uma nova entrevista com candidato</p>
+    </div>
+
+    <!-- Navegação -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('calendar') }}">Agenda</a></li>
+                    <li class="breadcrumb-item active">Nova Entrevista</li>
+                </ol>
+            </nav>
+        </div>
     </div>
 
     <div class="row justify-content-center">
@@ -23,92 +31,115 @@
             <div class="card">
                 <div class="card-header bg-primary text-white">
                     <h5 class="mb-0">
-                        <i class="fas fa-calendar-plus me-2"></i>
+                        <i class="fas fa-calendar-check me-2"></i>
                         Dados da Entrevista
                     </h5>
                 </div>
                 <div class="card-body">
                     <form method="POST" id="interviewForm">
-                        {% if candidate %}
-    <input type="hidden" name="candidate_id" value="{{ candidate.id }}">
-    {% endif %}
                         <div class="row">
+                            <!-- Seleção de Vaga -->
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">Vaga *</label>
-                                <select name="job_id" id="jobSelect" class="form-select" required 
-                                        {% if candidate %}onchange="loadCandidates()"{% endif %}>
+                                <select name="job_id" id="jobSelect" class="form-select" required>
                                     <option value="">Selecione a vaga</option>
                                     {% for job in jobs %}
-                                    <option value="{{ job.id }}" 
-                                            {% if candidate and candidate.job_id == job.id %}selected{% endif %}>
-                                        {{ job.title }}
-                                    </option>
+                                    <option value="{{ job.id }}">{{ job.title }}</option>
                                     {% endfor %}
                                 </select>
+                                {% if not jobs %}
+                                <div class="alert alert-warning mt-2">
+                                    <i class="fas fa-exclamation-triangle me-2"></i>
+                                    Nenhuma vaga cadastrada. 
+                                    <a href="{{ url_for('new_job') }}" class="alert-link">Crie uma vaga primeiro</a>.
+                                </div>
+                                {% endif %}
                             </div>
                             
+                            <!-- Seleção de Candidato -->
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">Candidato *</label>
                                 <select name="candidate_id" id="candidateSelect" class="form-select" required>
                                     <option value="">Selecione um candidato</option>
-                                    {% if candidate %}
-                                    <option value="{{ candidate.id }}" selected>
+                                    {% for candidate in candidates %}
+                                    <option value="{{ candidate.id }}">
                                         {{ candidate.name }} - {{ candidate.email }}
                                     </option>
-                                    {% endif %}
+                                    {% endfor %}
                                 </select>
-                                <div class="form-text">
-                                    {% if not candidate %}
-                                    Selecione uma vaga para ver os candidatos
-                                    {% endif %}
+                                {% if not candidates %}
+                                <div class="alert alert-warning mt-2">
+                                    <i class="fas fa-exclamation-triangle me-2"></i>
+                                    Nenhum candidato cadastrado. 
+                                    <a href="{{ url_for('jobs') }}" class="alert-link">Adicione candidatos primeiro</a>.
                                 </div>
+                                {% endif %}
                             </div>
                         </div>
 
+                        <!-- Título da Entrevista -->
                         <div class="mb-3">
                             <label class="form-label">Título da Entrevista *</label>
                             <input type="text" name="title" class="form-control" 
-                                   placeholder="Ex: Entrevista Técnica - Frontend" required
-                                   value="{% if candidate %}Entrevista - {{ candidate.job.title }}{% endif %}">
+                                   placeholder="Ex: Entrevista Técnica - Desenvolvedor Frontend" 
+                                   value="Entrevista - TalentScope AI" required>
                         </div>
 
+                        <!-- Data e Hora -->
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">Data e Hora de Início *</label>
-                                <input type="datetime-local" name="start_time" class="form-control" required>
+                                <input type="datetime-local" name="start_time" id="startTime" class="form-control" required>
                             </div>
                             
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">Data e Hora de Término *</label>
-                                <input type="datetime-local" name="end_time" class="form-control" required>
+                                <input type="datetime-local" name="end_time" id="endTime" class="form-control" required>
                             </div>
                         </div>
 
+                        <!-- Link da Reunião -->
                         <div class="mb-3">
                             <label class="form-label">Link da Reunião *</label>
                             <input type="url" name="meeting_link" class="form-control" 
-                                   placeholder="https://meet.google.com/... ou https://zoom.us/..." required>
+                                   placeholder="https://meet.google.com/... ou https://zoom.us/..." 
+                                   value="https://meet.google.com/" required>
                             <div class="form-text">
-                                <i class="fas fa-lightbulb me-1"></i>
+                                <i class="fas fa-info-circle me-1"></i>
                                 Este link será enviado automaticamente para o candidato via WhatsApp
                             </div>
                         </div>
 
+                        <!-- Descrição -->
                         <div class="mb-3">
                             <label class="form-label">Descrição da Entrevista</label>
                             <textarea name="description" class="form-control" rows="3" 
-                                      placeholder="Pontos a serem avaliados, formato da entrevista..."></textarea>
+                                      placeholder="Pontos a serem avaliados, formato da entrevista, participantes..."></textarea>
                         </div>
 
+                        <!-- Observações -->
+                        <div class="mb-4">
+                            <label class="form-label">Observações Internas</label>
+                            <textarea name="notes" class="form-control" rows="2" 
+                                      placeholder="Observações para a equipe interna..."></textarea>
+                        </div>
+
+                        <!-- Informações Importantes -->
                         <div class="alert alert-info">
-                            <i class="fas fa-info-circle me-2"></i>
-                            <strong>Integração WhatsApp:</strong> Após agendar, você poderá enviar o convite 
-                            automaticamente para o candidato com data, hora e link da reunião.
+                            <h6 class="alert-heading">
+                                <i class="fas fa-lightbulb me-2"></i>Informações Importantes
+                            </h6>
+                            <ul class="mb-0">
+                                <li>Após agendar, você poderá enviar o convite automaticamente via WhatsApp</li>
+                                <li>O candidato receberá data, hora e link da reunião</li>
+                                <li>A entrevista aparecerá no calendário e na lista de próximas entrevistas</li>
+                            </ul>
                         </div>
 
+                        <!-- Botões de Ação -->
                         <div class="d-flex gap-2">
-                            <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-save me-2"></i>Agendar Entrevista
+                            <button type="submit" class="btn btn-primary flex-fill">
+                                <i class="fas fa-calendar-plus me-2"></i>Agendar Entrevista
                             </button>
                             <a href="{{ url_for('calendar') }}" class="btn btn-secondary">
                                 <i class="fas fa-times me-2"></i>Cancelar
@@ -125,51 +156,82 @@
 // Preencher data/hora atual como padrão
 document.addEventListener('DOMContentLoaded', function() {
     const now = new Date();
-    const startTime = new Date(now.getTime() + 60 * 60 * 1000); // 1 hora à frente
-    const endTime = new Date(startTime.getTime() + 60 * 60 * 1000); // +1 hora
     
-    document.querySelector('input[name="start_time"]').value = 
-        startTime.toISOString().slice(0, 16);
-    document.querySelector('input[name="end_time"]').value = 
-        endTime.toISOString().slice(0, 16);
+    // Arredondar para o próximo quarto de hora
+    const roundedMinutes = Math.ceil(now.getMinutes() / 15) * 15;
+    const startTime = new Date(now);
+    startTime.setMinutes(roundedMinutes);
+    startTime.setSeconds(0);
+    startTime.setMilliseconds(0);
     
-    {% if not candidate %}
-    // Carregar candidatos quando vaga for selecionada
-    document.getElementById('jobSelect').addEventListener('change', loadCandidates);
-    {% endif %}
-});
-
-function loadCandidates() {
-    const jobId = document.getElementById('jobSelect').value;
-    const candidateSelect = document.getElementById('candidateSelect');
-    
-    if (!jobId) {
-        candidateSelect.innerHTML = '<option value="">Selecione uma vaga</option>';
-        return;
+    // Se arredondou para 60 minutos, ajusta a hora
+    if (startTime.getMinutes() === 60) {
+        startTime.setMinutes(0);
+        startTime.setHours(startTime.getHours() + 1);
     }
     
-    // Mostrar loading
-    candidateSelect.innerHTML = '<option value="">Carregando candidatos...</option>';
+    const endTime = new Date(startTime.getTime() + 60 * 60 * 1000); // +1 hora
     
-    fetch(`/api/candidates/${jobId}`)
-        .then(response => response.json())
-        .then(candidates => {
-            if (candidates.length === 0) {
-                candidateSelect.innerHTML = '<option value="">Nenhum candidato para esta vaga</option>';
-                return;
-            }
-            
-            let options = '<option value="">Selecione um candidato</option>';
-            candidates.forEach(candidate => {
-                options += `<option value="${candidate.id}">${candidate.name} - ${candidate.email}</option>`;
-            });
-            
-            candidateSelect.innerHTML = options;
-        })
-        .catch(error => {
-            console.error('Erro ao carregar candidatos:', error);
-            candidateSelect.innerHTML = '<option value="">Erro ao carregar</option>';
-        });
-}
+    // Formatar para datetime-local (YYYY-MM-DDTHH:MM)
+    function formatDateTime(date) {
+        return date.toISOString().slice(0, 16);
+    }
+    
+    document.getElementById('startTime').value = formatDateTime(startTime);
+    document.getElementById('endTime').value = formatDateTime(endTime);
+    
+    // Validação de data/hora
+    document.getElementById('interviewForm').addEventListener('submit', function(e) {
+        const start = new Date(document.getElementById('startTime').value);
+        const end = new Date(document.getElementById('endTime').value);
+        
+        if (start >= end) {
+            e.preventDefault();
+            alert('A data/hora de término deve ser posterior à data/hora de início!');
+            return false;
+        }
+        
+        if (start < new Date()) {
+            e.preventDefault();
+            alert('A data/hora de início não pode ser no passado!');
+            return false;
+        }
+    });
+});
 </script>
+
+<style>
+.card {
+    transition: transform 0.2s;
+    border: none;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+
+.card:hover {
+    transform: translateY(-2px);
+}
+
+.form-label {
+    font-weight: 600;
+    color: #2C3E50;
+}
+
+.alert ul {
+    margin-bottom: 0;
+}
+
+.btn {
+    transition: all 0.2s;
+}
+
+@media (max-width: 768px) {
+    .d-flex.gap-2 {
+        flex-direction: column;
+    }
+    
+    .btn {
+        margin-bottom: 0.5rem;
+    }
+}
+</style>
 {% endblock %}
