@@ -72,6 +72,58 @@
         color: white;
     }
     
+    /* Botões de importação em massa */
+    .btn-bulk-upload {
+        background: linear-gradient(135deg, var(--d1000-yellow) 0%, #FFA500 100%);
+        border: none;
+        padding: 0.75rem 1.5rem;
+        border-radius: 10px;
+        font-weight: 600;
+        color: white;
+        transition: all 0.3s ease;
+        box-shadow: 0 5px 15px rgba(247, 181, 0, 0.3);
+    }
+    
+    .btn-bulk-upload:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(247, 181, 0, 0.4);
+        color: white;
+    }
+    
+    .btn-reanalyze-all {
+        background: linear-gradient(135deg, var(--d1000-orange) 0%, #FF6B35 100%);
+        border: none;
+        padding: 0.75rem 1.5rem;
+        border-radius: 10px;
+        font-weight: 600;
+        color: white;
+        transition: all 0.3s ease;
+        box-shadow: 0 5px 15px rgba(232, 93, 42, 0.3);
+    }
+    
+    .btn-reanalyze-all:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(232, 93, 42, 0.4);
+        color: white;
+    }
+    
+    .btn-add-candidate {
+        background: linear-gradient(135deg, var(--d1000-green) 0%, #4CAF50 100%);
+        border: none;
+        padding: 0.75rem 1.5rem;
+        border-radius: 10px;
+        font-weight: 600;
+        color: white;
+        transition: all 0.3s ease;
+        box-shadow: 0 5px 15px rgba(92, 184, 92, 0.3);
+    }
+    
+    .btn-add-candidate:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(92, 184, 92, 0.4);
+        color: white;
+    }
+    
     /* Animação do Modal */
     .modal.fade .modal-dialog {
         transition: transform .3s ease-out;
@@ -83,7 +135,7 @@
     }
 </style>
 
-<!-- 🔥 CABEÇALHO COM BOTÕES (ATUALIZADO) -->
+<!-- 🔥 CABEÇALHO COM BOTÕES (ATUALIZADO COM IMPORTACAO EM MASSA) -->
 <div class="page-header">
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
         <div>
@@ -94,9 +146,19 @@
             </p>
         </div>
         <div class="btn-group">
-            <a href="{{ url_for('new_candidate', job_id=job.id) }}" class="btn btn-success">
+            <!-- 🔥 NOVO BOTÃO DE IMPORTACAO EM MASSA -->
+            <a href="{{ url_for('bulk_upload_candidates', job_id=job.id) }}" class="btn btn-bulk-upload">
+                <i class="fas fa-users me-2"></i>Importar em Massa
+            </a>
+            <a href="{{ url_for('new_candidate', job_id=job.id) }}" class="btn btn-add-candidate">
                 <i class="fas fa-user-plus me-2"></i>Adicionar Candidato
             </a>
+            <!-- 🔥 BOTÃO DE REANALISE EM MASSA -->
+            <form method="POST" action="{{ url_for('reanalyze_all_candidates', job_id=job.id) }}" style="display: inline;">
+                <button type="submit" class="btn btn-reanalyze-all">
+                    <i class="fas fa-robot me-2"></i>Reanalisar Todos
+                </button>
+            </form>
             <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteJobModal">
                 <i class="fas fa-trash me-2"></i>Excluir Vaga
             </button>
@@ -141,7 +203,17 @@
 <!-- Seção de Candidatos -->
 <div class="card">
     <div class="card-header bg-dark text-white">
-        <h5 class="mb-0"><i class="fas fa-users me-2"></i>Candidatos ({{ candidates|length }})</h5>
+        <div class="d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="fas fa-users me-2"></i>Candidatos ({{ candidates|length }})</h5>
+            {% if candidates %}
+            <div class="text-white opacity-75">
+                <small>
+                    <i class="fas fa-sort-amount-down me-1"></i>
+                    Ordenado por Score IA
+                </small>
+            </div>
+            {% endif %}
+        </div>
     </div>
     <div class="card-body">
         {% if candidates %}
@@ -149,9 +221,11 @@
             <table class="table table-hover">
                 <thead>
                     <tr>
+                        <th>Posição</th>
                         <th>Nome</th>
                         <th>Email</th>
                         <th>Telefone</th>
+                        <th>LinkedIn</th>
                         <th>Score IA</th>
                         <th>Status</th>
                         <th>Ações</th>
@@ -161,10 +235,22 @@
                     {% for candidate in candidates %}
                     <tr>
                         <td>
+                            <span class="badge bg-primary rounded-pill">{{ loop.index }}</span>
+                        </td>
+                        <td>
                             <strong>{{ candidate.name }}</strong>
                         </td>
                         <td>{{ candidate.email }}</td>
                         <td>{{ candidate.phone }}</td>
+                        <td>
+                            {% if candidate.linkedin_url %}
+                                <a href="{{ candidate.linkedin_url }}" target="_blank" title="Ver LinkedIn">
+                                    <i class="fab fa-linkedin fa-2x"></i>
+                                </a>
+                            {% else %}
+                                <span class="text-muted">N/A</span>
+                            {% endif %}
+                        </td>
                         <td>
                             {% if candidate.ai_score %}
                             <span class="badge rounded-pill {% if candidate.ai_score >= 80 %}bg-success{% elif candidate.ai_score >= 60 %}bg-warning text-dark{% else %}bg-danger{% endif %}">
@@ -249,7 +335,14 @@
         <div class="alert alert-info mb-0">
             <i class="fas fa-info-circle me-2"></i>
             Nenhum candidato cadastrado para esta vaga ainda.
-            <a href="{{ url_for('new_candidate', job_id=job.id) }}" class="alert-link">Adicionar primeiro candidato</a>
+            <div class="mt-2">
+                <a href="{{ url_for('bulk_upload_candidates', job_id=job.id) }}" class="btn btn-warning btn-sm me-2">
+                    <i class="fas fa-users me-1"></i>Importar em Massa
+                </a>
+                <a href="{{ url_for('new_candidate', job_id=job.id) }}" class="btn btn-success btn-sm">
+                    <i class="fas fa-user-plus me-1"></i>Adicionar Candidato
+                </a>
+            </div>
         </div>
         {% endif %}
     </div>
@@ -305,6 +398,13 @@
                 // Modal já faz a confirmação visual, então apenas deixa o submit acontecer
                 console.log('Exclusão confirmada via modal');
             });
+        });
+        
+        // Confirmação para reanálise em massa
+        document.querySelector('form[action*="reanalyze-all"]').addEventListener('submit', function(e) {
+            if (!confirm('Deseja reanalisar TODOS os candidatos desta vaga? Isso pode levar alguns minutos.')) {
+                e.preventDefault();
+            }
         });
     </script>
 {% endblock %}

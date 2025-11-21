@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+
+{% block title %}Espaço Candidato - TalentScope AI{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Cabeçalho -->
+    <div class="page-header">
+        <h1>
+            <i class="fas fa-user me-2 text-primary"></i>
+            Espaço Candidato
+        </h1>
+        <p class="lead mb-0">Top 10 candidatos com melhor pontuação IA</p>
+    </div>
+
+    <!-- Ranking de Candidatos -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-trophy me-2"></i>
+                        Ranking TalentScope AI
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if top_candidates and top_candidates|length > 0 %}
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th width="50">#</th>
+                                        <th>Candidato</th>
+                                        <th>Score IA</th>
+                                        <th>Localização</th>
+                                        <th>Formação</th>
+                                        <th width="100">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for candidate in top_candidates %}
+                                    <tr>
+                                        <td>
+                                            <span class="badge {% if loop.index == 1 %}bg-warning{% elif loop.index == 2 %}bg-secondary{% elif loop.index == 3 %}bg-danger{% else %}bg-primary{% endif %}">
+                                                {{ loop.index }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <strong>{{ candidate.name }}</strong>
+                                            <br>
+                                            <small class="text-muted">{{ candidate.email }}</small>
+                                        </td>
+                                        <td>
+                                            <div class="d-flex align-items-center">
+                                                <div class="progress flex-grow-1 me-2" style="height: 12px; min-width: 80px;">
+                                                    <div class="progress-bar 
+                                                        {% if candidate.score >= 8 %}bg-success
+                                                        {% elif candidate.score >= 6 %}bg-warning
+                                                        {% else %}bg-danger{% endif %}" 
+                                                        style="width: {{ candidate.score * 10 }}%">
+                                                    </div>
+                                                </div>
+                                                <strong class="ms-2">{{ candidate.score }}</strong>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            {% if candidate.city != "Local não identificada" and candidate.city != "Cidade não identificada" %}
+                                                <i class="fas fa-map-marker-alt text-danger me-1"></i>
+                                                {{ candidate.city }}/{{ candidate.state }}
+                                            {% else %}
+                                                <span class="text-muted">
+                                                    <i class="fas fa-map-marker-alt me-1"></i>
+                                                    Não identificada
+                                                </span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <i class="fas fa-graduation-cap text-success me-1"></i>
+                                            {{ candidate.education }}
+                                        </td>
+                                        <td>
+                                            <div class="btn-group">
+                                                {% if candidate.phone %}
+                                                    <a href="{{ candidate.phone|whatsapp_link }}" 
+                                                       target="_blank" 
+                                                       class="btn btn-success btn-sm"
+                                                       title="Contatar via WhatsApp">
+                                                        <i class="fab fa-whatsapp"></i>
+                                                    </a>
+                                                {% endif %}
+                                                <a href="{{ url_for('candidate_detail', candidate_id=candidate.id) }}" 
+                                                   class="btn btn-primary btn-sm"
+                                                   title="Ver detalhes">
+                                                    <i class="fas fa-eye"></i>
+                                                </a>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="fas fa-users fa-3x text-muted mb-3"></i>
+                            <h4 class="text-muted">Nenhum candidato encontrado</h4>
+                            <p class="text-muted">Adicione candidatos e execute a análise de IA para ver o ranking.</p>
+                            <a href="{{ url_for('jobs') }}" class="btn btn-primary">
+                                <i class="fas fa-briefcase me-2"></i>Ver Vagas
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+@media (max-width: 768px) {
+    .table-responsive {
+        font-size: 12px;
+    }
+    
+    .btn-sm {
+        padding: 4px 6px;
+        font-size: 10px;
+    }
+    
+    .progress {
+        height: 8px;
+        min-width: 60px !important;
+    }
+    
+    .badge {
+        font-size: 10px;
+        padding: 4px 6px;
+    }
+}
+
+.badge {
+    font-size: 12px;
+    padding: 6px 10px;
+}
+
+.table tbody tr:hover {
+    background-color: rgba(0, 123, 255, 0.05);
+}
+
+.progress {
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.progress-bar {
+    transition: width 0.5s ease;
+}
+
+/* Cores personalizadas para os scores */
+.bg-success {
+    background: linear-gradient(45deg, #28a745, #20c997) !important;
+}
+
+.bg-warning {
+    background: linear-gradient(45deg, #ffc107, #fd7e14) !important;
+}
+
+.bg-danger {
+    background: linear-gradient(45deg, #dc3545, #e83e8c) !important;
+}
+</style>
+{% endblock %}

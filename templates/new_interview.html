@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+
+{% block title %}Nova Entrevista - TalentScope AI{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="page-header">
+        <h1>
+            <i class="fas fa-plus-circle me-2 text-primary"></i>
+            Nova Entrevista
+        </h1>
+        <p class="lead mb-0">
+            {% if candidate %}
+            Agendando com: <strong>{{ candidate.name }}</strong>
+            {% else %}
+            Agende uma nova entrevista
+            {% endif %}
+        </p>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-calendar-plus me-2"></i>
+                        Dados da Entrevista
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" id="interviewForm">
+                        {% if candidate %}
+    <input type="hidden" name="candidate_id" value="{{ candidate.id }}">
+    {% endif %}
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Vaga *</label>
+                                <select name="job_id" id="jobSelect" class="form-select" required 
+                                        {% if candidate %}onchange="loadCandidates()"{% endif %}>
+                                    <option value="">Selecione a vaga</option>
+                                    {% for job in jobs %}
+                                    <option value="{{ job.id }}" 
+                                            {% if candidate and candidate.job_id == job.id %}selected{% endif %}>
+                                        {{ job.title }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Candidato *</label>
+                                <select name="candidate_id" id="candidateSelect" class="form-select" required>
+                                    <option value="">Selecione um candidato</option>
+                                    {% if candidate %}
+                                    <option value="{{ candidate.id }}" selected>
+                                        {{ candidate.name }} - {{ candidate.email }}
+                                    </option>
+                                    {% endif %}
+                                </select>
+                                <div class="form-text">
+                                    {% if not candidate %}
+                                    Selecione uma vaga para ver os candidatos
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Título da Entrevista *</label>
+                            <input type="text" name="title" class="form-control" 
+                                   placeholder="Ex: Entrevista Técnica - Frontend" required
+                                   value="{% if candidate %}Entrevista - {{ candidate.job.title }}{% endif %}">
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Data e Hora de Início *</label>
+                                <input type="datetime-local" name="start_time" class="form-control" required>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Data e Hora de Término *</label>
+                                <input type="datetime-local" name="end_time" class="form-control" required>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Link da Reunião *</label>
+                            <input type="url" name="meeting_link" class="form-control" 
+                                   placeholder="https://meet.google.com/... ou https://zoom.us/..." required>
+                            <div class="form-text">
+                                <i class="fas fa-lightbulb me-1"></i>
+                                Este link será enviado automaticamente para o candidato via WhatsApp
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Descrição da Entrevista</label>
+                            <textarea name="description" class="form-control" rows="3" 
+                                      placeholder="Pontos a serem avaliados, formato da entrevista..."></textarea>
+                        </div>
+
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>
+                            <strong>Integração WhatsApp:</strong> Após agendar, você poderá enviar o convite 
+                            automaticamente para o candidato com data, hora e link da reunião.
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-2"></i>Agendar Entrevista
+                            </button>
+                            <a href="{{ url_for('calendar') }}" class="btn btn-secondary">
+                                <i class="fas fa-times me-2"></i>Cancelar
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Preencher data/hora atual como padrão
+document.addEventListener('DOMContentLoaded', function() {
+    const now = new Date();
+    const startTime = new Date(now.getTime() + 60 * 60 * 1000); // 1 hora à frente
+    const endTime = new Date(startTime.getTime() + 60 * 60 * 1000); // +1 hora
+    
+    document.querySelector('input[name="start_time"]').value = 
+        startTime.toISOString().slice(0, 16);
+    document.querySelector('input[name="end_time"]').value = 
+        endTime.toISOString().slice(0, 16);
+    
+    {% if not candidate %}
+    // Carregar candidatos quando vaga for selecionada
+    document.getElementById('jobSelect').addEventListener('change', loadCandidates);
+    {% endif %}
+});
+
+function loadCandidates() {
+    const jobId = document.getElementById('jobSelect').value;
+    const candidateSelect = document.getElementById('candidateSelect');
+    
+    if (!jobId) {
+        candidateSelect.innerHTML = '<option value="">Selecione uma vaga</option>';
+        return;
+    }
+    
+    // Mostrar loading
+    candidateSelect.innerHTML = '<option value="">Carregando candidatos...</option>';
+    
+    fetch(`/api/candidates/${jobId}`)
+        .then(response => response.json())
+        .then(candidates => {
+            if (candidates.length === 0) {
+                candidateSelect.innerHTML = '<option value="">Nenhum candidato para esta vaga</option>';
+                return;
+            }
+            
+            let options = '<option value="">Selecione um candidato</option>';
+            candidates.forEach(candidate => {
+                options += `<option value="${candidate.id}">${candidate.name} - ${candidate.email}</option>`;
+            });
+            
+            candidateSelect.innerHTML = options;
+        })
+        .catch(error => {
+            console.error('Erro ao carregar candidatos:', error);
+            candidateSelect.innerHTML = '<option value="">Erro ao carregar</option>';
+        });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+
+{% block title %}Lista de Entrevistas - TalentScope AI{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="page-header">
+        <h1>
+            <i class="fas fa-list me-2 text-primary"></i>
+            Lista de Entrevistas
+        </h1>
+        <p class="lead mb-0">Todas as entrevistas agendadas</p>
+    </div>
+
+    <!-- Botões de Ação -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <a href="{{ url_for('calendar') }}" class="btn btn-primary">
+                <i class="fas fa-calendar me-2"></i>Ver Calendário
+            </a>
+            <a href="{{ url_for('new_interview') }}" class="btn btn-success ms-2">
+                <i class="fas fa-plus me-2"></i>Nova Entrevista
+            </a>
+        </div>
+    </div>
+
+    <!-- Lista de Entrevistas -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-calendar-check me-2"></i>
+                        Entrevistas Agendadas
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if interviews %}
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>Data/Hora</th>
+                                        <th>Candidato</th>
+                                        <th>Vaga</th>
+                                        <th>Duração</th>
+                                        <th>Status</th>
+                                        <th>WhatsApp</th>
+                                        <th width="150">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for interview in interviews %}
+                                    <tr>
+                                        <td>
+                                            <strong>{{ interview.start_time.strftime('%d/%m/%Y') }}</strong><br>
+                                            <small class="text-muted">{{ interview.start_time.strftime('%H:%M') }}</small>
+                                        </td>
+                                        <td>
+                                            <strong>{{ interview.candidate.name }}</strong><br>
+                                            <small class="text-muted">{{ interview.candidate.email }}</small>
+                                        </td>
+                                        <td>{{ interview.job.title }}</td>
+                                        <td>
+                                            {% set duration = ((interview.end_time - interview.start_time).total_seconds() / 60)|int %}
+                                            <span class="badge bg-secondary">{{ duration }} min</span>
+                                        </td>
+                                        <td>
+                                            {% if interview.status == 'scheduled' %}
+                                                <span class="badge bg-success">Agendada</span>
+                                            {% elif interview.status == 'completed' %}
+                                                <span class="badge bg-info">Concluída</span>
+                                            {% elif interview.status == 'cancelled' %}
+                                                <span class="badge bg-danger">Cancelada</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if interview.whatsapp_sent %}
+                                                <span class="badge bg-success">
+                                                    <i class="fas fa-check me-1"></i>Enviado
+                                                </span>
+                                            {% else %}
+                                                <span class="badge bg-warning">
+                                                    <i class="fas fa-clock me-1"></i>Pendente
+                                                </span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <div class="btn-group btn-group-sm">
+                                                {% if not interview.whatsapp_sent and interview.status == 'scheduled' %}
+                                                    <a href="{{ url_for('send_interview_whatsapp', interview_id=interview.id) }}" 
+                                                       class="btn btn-success"
+                                                       title="Enviar WhatsApp">
+                                                        <i class="fab fa-whatsapp"></i>
+                                                    </a>
+                                                {% endif %}
+                                                <a href="{{ url_for('candidate_detail', candidate_id=interview.candidate.id) }}" 
+                                                   class="btn btn-primary"
+                                                   title="Ver Candidato">
+                                                    <i class="fas fa-eye"></i>
+                                                </a>
+                                                {% if interview.status == 'scheduled' %}
+                                                    <form method="POST" action="{{ url_for('delete_interview', interview_id=interview.id) }}" 
+                                                          class="d-inline" onsubmit="return confirm('Cancelar esta entrevista?')">
+                                                        <button type="submit" class="btn btn-danger" title="Cancelar">
+                                                            <i class="fas fa-times"></i>
+                                                        </button>
+                                                    </form>
+                                                {% endif %}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="fas fa-calendar-times fa-3x text-muted mb-3"></i>
+                            <h4 class="text-muted">Nenhuma entrevista agendada</h4>
+                            <p class="text-muted">Comece agendando sua primeira entrevista.</p>
+                            <a href="{{ url_for('new_interview') }}" class="btn btn-primary">
+                                <i class="fas fa-plus me-2"></i>Agendar Primeira Entrevista
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+@media (max-width: 768px) {
+    .table-responsive {
+        font-size: 12px;
+    }
+    
+    .btn-group-sm .btn {
+        padding: 0.2rem 0.4rem;
+        font-size: 10px;
+    }
+    
+    .badge {
+        font-size: 0.7rem;
+    }
+}
+
+.btn-group-sm .btn {
+    margin: 0 1px;
+}
+</style>
+{% endblock %}

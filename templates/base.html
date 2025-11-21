@@ -270,7 +270,7 @@
             <li>
                 <a href="{{ url_for('dashboard') }}" class="{% if request.endpoint == 'dashboard' %}active{% endif %}">
                     <i class="fas fa-home"></i>
-                    <span>Dashboard</span>
+                    <span>Home</span>
                 </a>
             </li>
             <li>
@@ -285,6 +285,20 @@
                     <span>Nova Vaga</span>
                 </a>
             </li>
+            <li>
+                <a href="{{ url_for('candidate_space') }}" class="{% if request.endpoint == 'candidate_space' %}active{% endif %}">
+                    <i class="fas fa-user"></i>
+                    <span>Espaço Candidato</span>
+                </a>
+            </li>
+
+            <li>
+    <a href="{{ url_for('calendar') }}" class="{% if request.endpoint == 'calendar' %}active{% endif %}">
+        <i class="fas fa-calendar-alt"></i>
+        <span>Agenda</span>
+    </a>
+</li>
+            
             <li style="margin-top: 30px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 10px;">
                 <a href="{{ url_for('logout') }}">
                     <i class="fas fa-sign-out-alt"></i>

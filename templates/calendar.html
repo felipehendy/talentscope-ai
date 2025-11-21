@@ -1,15 +1,79 @@
 {% extends "base.html" %}
 
-{% block title %}Calendário - TalentScope AI{% endblock %}
+{% block title %}Calendário de Entrevistas - TalentScope AI{% endblock %}
 
 {% block content %}
-<div class="page-header">
-    <h1><i class="fas fa-calendar-alt me-3"></i>Calendário de Entrevistas</h1>
-</div>
+<div class="container-fluid">
+    <div class="page-header">
+        <h1>
+            <i class="fas fa-calendar-alt me-2 text-primary"></i>
+            Calendário de Entrevistas
+        </h1>
+        <p class="lead mb-0">Agende e gerencie entrevistas com candidatos</p>
+    </div>
 
-<div class="card">
-    <div class="card-body">
-        <div id="calendar"></div>
+    <!-- Botão Nova Entrevista -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <a href="{{ url_for('new_interview') }}" class="btn btn-primary">
+                <i class="fas fa-plus me-2"></i>Nova Entrevista
+            </a>
+            <a href="{{ url_for('interviews_list') }}" class="btn btn-outline-secondary ms-2">
+                <i class="fas fa-list me-2"></i>Lista Completa
+            </a>
+        </div>
+    </div>
+
+    <!-- Calendário -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-calendar me-2"></i>
+                        Agenda de Entrevistas
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div id="calendar"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Próximas Entrevistas -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-clock me-2"></i>
+                        Próximas Entrevistas (7 dias)
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Data/Hora</th>
+                                    <th>Candidato</th>
+                                    <th>Vaga</th>
+                                    <th>Duração</th>
+                                    <th>WhatsApp</th>
+                                    <th width="120">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="upcomingInterviews">
+                                <tr>
+                                    <td colspan="6" class="text-center text-muted">Carregando entrevistas...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 {% endblock %}
@@ -17,31 +81,231 @@
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Inicializar calendário
     const calendarEl = document.getElementById('calendar');
-    const events = {{ events|tojson }};
     
     const calendar = new FullCalendar.Calendar(calendarEl, {
-        initialView: window.innerWidth < 768 ? 'listWeek' : 'dayGridMonth',
+        initialView: 'dayGridMonth',
         headerToolbar: {
             left: 'prev,next today',
             center: 'title',
-            right: window.innerWidth < 768 ? 'listWeek' : 'dayGridMonth,timeGridWeek,listWeek'
+            right: 'dayGridMonth,timeGridWeek,timeGridDay'
         },
         locale: 'pt-br',
         buttonText: {
             today: 'Hoje',
             month: 'Mês',
-            week: 'Semana',
-            list: 'Lista'
+            week: 'Semana', 
+            day: 'Dia'
         },
-        events: events,
+        events: '/api/calendar/events',
         eventClick: function(info) {
-            alert('Entrevista: ' + info.event.title);
+            const candidateId = info.event.extendedProps.candidate_id;
+            window.location.href = `/candidates/${candidateId}`;
         },
-        height: 'auto'
+        height: 600,
+        businessHours: {
+            daysOfWeek: [1, 2, 3, 4, 5], // Segunda a Sexta
+            startTime: '09:00',
+            endTime: '18:00'
+        },
+        eventTimeFormat: {
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false
+        }
     });
     
     calendar.render();
+    
+    // Carregar próximas entrevistas
+    loadUpcomingInterviews();
 });
+
+function loadUpcomingInterviews() {
+    fetch('/api/calendar/events')
+        .then(response => response.json())
+        .then(events => {
+            const tbody = document.getElementById('upcomingInterviews');
+            const now = new Date();
+            const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+            
+            // Filtrar eventos dos próximos 7 dias
+            const upcomingEvents = events.filter(event => {
+                const eventDate = new Date(event.start);
+                return eventDate >= now && eventDate <= nextWeek;
+            }).sort((a, b) => new Date(a.start) - new Date(b.start));
+            
+            if (upcomingEvents.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Nenhuma entrevista agendada para os próximos 7 dias</td></tr>';
+                return;
+            }
+            
+            let html = '';
+            upcomingEvents.forEach(event => {
+                const start = new Date(event.start);
+                const end = new Date(event.end);
+                const duration = Math.round((end - start) / (1000 * 60)); // minutos
+                
+                // Extrair nome do candidato e vaga do título
+                const titleParts = event.title.split(' - ');
+                const candidateName = titleParts[0] || 'Candidato';
+                const jobTitle = titleParts[1] || 'Vaga não especificada';
+                
+                // Formatar data e hora
+                const dateStr = start.toLocaleDateString('pt-BR');
+                const timeStr = start.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
+                
+                html += `
+                    <tr>
+                        <td>
+                            <strong>${dateStr}</strong><br>
+                            <small class="text-muted">${timeStr}</small>
+                        </td>
+                        <td>
+                            <strong>${candidateName}</strong>
+                        </td>
+                        <td>${jobTitle}</td>
+                        <td>
+                            <span class="badge bg-secondary">${duration} min</span>
+                        </td>
+                        <td>
+                            ${event.extendedProps.whatsapp_sent ? 
+                                '<span class="badge bg-success"><i class="fas fa-check me-1"></i>Enviado</span>' : 
+                                '<span class="badge bg-warning"><i class="fas fa-clock me-1"></i>Pendente</span>'
+                            }
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <a href="/interviews/${event.id}/send-whatsapp" 
+                                   class="btn btn-success ${event.extendedProps.whatsapp_sent ? 'disabled' : ''}"
+                                   title="Enviar convite via WhatsApp"
+                                   ${event.extendedProps.whatsapp_sent ? 'onclick="return false;"' : ''}>
+                                    <i class="fab fa-whatsapp"></i>
+                                </a>
+                                <a href="/candidates/${event.extendedProps.candidate_id}" 
+                                   class="btn btn-primary"
+                                   title="Ver candidato">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            });
+            
+            tbody.innerHTML = html;
+        })
+        .catch(error => {
+            console.error('Erro ao carregar entrevistas:', error);
+            document.getElementById('upcomingInterviews').innerHTML = 
+                '<tr><td colspan="6" class="text-center text-danger">Erro ao carregar entrevistas. Recarregue a página.</td></tr>';
+        });
+}
+
+// Atualizar a lista a cada 30 segundos
+setInterval(loadUpcomingInterviews, 30000);
 </script>
+
+<style>
+.fc {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.fc-header-toolbar {
+    padding: 10px;
+    margin-bottom: 0 !important;
+}
+
+.fc-toolbar-title {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--d1000-dark);
+}
+
+.fc-event {
+    cursor: pointer;
+    border: none;
+    font-size: 0.85rem;
+    padding: 2px 4px;
+    border-radius: 4px;
+}
+
+.fc-event-title {
+    font-weight: 500;
+}
+
+.fc-day-today {
+    background-color: rgba(0, 123, 255, 0.1) !important;
+}
+
+.fc-event {
+    background-color: #007bff;
+    border-color: #007bff;
+}
+
+.fc-event:hover {
+    background-color: #0056b3;
+    border-color: #0056b3;
+}
+
+/* Responsividade */
+@media (max-width: 768px) {
+    .fc-toolbar {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .fc-toolbar-chunk {
+        margin-bottom: 10px;
+    }
+    
+    .fc-toolbar-title {
+        font-size: 1.2rem;
+    }
+    
+    .btn-group-sm {
+        flex-direction: column;
+    }
+    
+    .btn-group-sm .btn {
+        margin-bottom: 2px;
+        border-radius: 4px !important;
+    }
+}
+
+/* Estilo para a tabela de próximas entrevistas */
+.table-responsive {
+    border-radius: 8px;
+}
+
+.table th {
+    border-top: none;
+    font-weight: 600;
+}
+
+.table-hover tbody tr:hover {
+    background-color: rgba(0, 123, 255, 0.05);
+}
+
+.badge {
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.btn-group-sm .btn {
+    padding: 0.25rem 0.5rem;
+}
+
+/* Loading animation */
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+
+.loading {
+    animation: pulse 1.5s ease-in-out infinite;
+}
+</style>
 {% endblock %}
