@@ -7,6 +7,7 @@ from werkzeug.utils import secure_filename
 from datetime import datetime
 from flask import redirect, url_for, flash
 from flask_login import login_required
+from flask_migrate import Migrate
 import pandas as pd 
 from ai_analyzer import AIAnalyzer  # ✅ USAR APENAS AIAnalyzer
 import json
@@ -30,6 +31,7 @@ app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 db = SQLAlchemy(app)
+migrate = Migrate(app, db)
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
