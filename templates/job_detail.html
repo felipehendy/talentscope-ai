@@ -45,7 +45,6 @@
         letter-spacing: 0.5px;
     }
     
-    /* Estilo para garantir a quebra de linha na descrição */
     .description-text {
         white-space: pre-wrap; 
     }
@@ -64,7 +63,6 @@
         margin-right: 0.5rem;
     }
     
-    /* Estilo para o botão do WhatsApp */
     .btn-whatsapp {
         background-color: #25D366;
         color: white;
@@ -73,14 +71,36 @@
         background-color: #128C7E;
         color: white;
     }
+    
+    /* Animação do Modal */
+    .modal.fade .modal-dialog {
+        transition: transform .3s ease-out;
+    }
+    
+    .modal-content {
+        border: none;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+    }
 </style>
 
+<!-- 🔥 CABEÇALHO COM BOTÕES (ATUALIZADO) -->
 <div class="page-header">
-    <div class="d-flex justify-content-between align-items-center">
-        <h1><i class="fas fa-briefcase me-3"></i>{{ job.title }}</h1>
-        <a href="{{ url_for('new_candidate', job_id=job.id) }}" class="btn btn-success">
-            <i class="fas fa-user-plus me-2"></i>Adicionar Candidato
-        </a>
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div>
+            <h1><i class="fas fa-briefcase me-3"></i>{{ job.title }}</h1>
+            <p class="mb-0 opacity-75">
+                <i class="fas fa-calendar-alt me-2"></i>
+                Criada em {{ job.created_at.strftime('%d/%m/%Y') }}
+            </p>
+        </div>
+        <div class="btn-group">
+            <a href="{{ url_for('new_candidate', job_id=job.id) }}" class="btn btn-success">
+                <i class="fas fa-user-plus me-2"></i>Adicionar Candidato
+            </a>
+            <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteJobModal">
+                <i class="fas fa-trash me-2"></i>Excluir Vaga
+            </button>
+        </div>
     </div>
 </div>
 
@@ -98,7 +118,7 @@
                     {{ job.description }}
                 </p>
                 
-                <!-- Seção de Requisitos (movida para dentro da Descrição) -->
+                <!-- Seção de Requisitos -->
                 <h6 class="text-primary mb-3"><i class="fas fa-check-circle me-2"></i>Requisitos</h6>
                 {% if job.requirements %}
                     <ul class="list-group list-group-flush">
@@ -118,7 +138,7 @@
     </div>
 </div>
 
-<!-- Seção de Candidatos (Restaurada) -->
+<!-- Seção de Candidatos -->
 <div class="card">
     <div class="card-header bg-dark text-white">
         <h5 class="mb-0"><i class="fas fa-users me-2"></i>Candidatos ({{ candidates|length }})</h5>
@@ -160,6 +180,7 @@
                             </span>
                         </td>
                         <td>
+                            <!-- 🔥 BOTÕES DE AÇÃO ATUALIZADOS -->
                             <div class="btn-group btn-group-sm">
                                 <a href="{{ url_for('candidate_detail', candidate_id=candidate.id) }}" 
                                    class="btn btn-primary" title="Ver Detalhes">
@@ -173,9 +194,53 @@
                                     <i class="fab fa-whatsapp"></i>
                                 </a>
                                 {% endif %}
+                                <!-- 🔥 BOTÃO DE EXCLUIR CANDIDATO -->
+                                <button type="button" 
+                                        class="btn btn-danger" 
+                                        data-bs-toggle="modal" 
+                                        data-bs-target="#deleteCandidateModal{{ candidate.id }}"
+                                        title="Excluir Candidato">
+                                    <i class="fas fa-trash"></i>
+                                </button>
                             </div>
                         </td>
                     </tr>
+                    
+                    <!-- 🔥 MODAL INDIVIDUAL PARA CADA CANDIDATO -->
+                    <div class="modal fade" id="deleteCandidateModal{{ candidate.id }}" tabindex="-1" aria-hidden="true">
+                        <div class="modal-dialog modal-dialog-centered">
+                            <div class="modal-content">
+                                <div class="modal-header bg-danger text-white">
+                                    <h5 class="modal-title">
+                                        <i class="fas fa-exclamation-triangle me-2"></i>Confirmar Exclusão
+                                    </h5>
+                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <div class="text-center mb-3">
+                                        <i class="fas fa-user-times text-danger" style="font-size: 48px;"></i>
+                                    </div>
+                                    <p class="text-center mb-3">
+                                        Tem certeza que deseja excluir o candidato <strong>{{ candidate.name }}</strong>?
+                                    </p>
+                                    <div class="alert alert-warning mb-0">
+                                        <i class="fas fa-exclamation-circle me-2"></i>
+                                        Esta ação não pode ser desfeita!
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                                        <i class="fas fa-times me-2"></i>Cancelar
+                                    </button>
+                                    <form method="POST" action="{{ url_for('delete_candidate', candidate_id=candidate.id) }}" style="display: inline;">
+                                        <button type="submit" class="btn btn-danger">
+                                            <i class="fas fa-trash me-2"></i>Sim, Excluir
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                     {% endfor %}
                 </tbody>
             </table>
@@ -190,10 +255,56 @@
     </div>
 </div>
 
+<!-- 🔥 MODAL PARA EXCLUIR VAGA -->
+<div class="modal fade" id="deleteJobModal" tabindex="-1" aria-labelledby="deleteJobModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="deleteJobModalLabel">
+                    <i class="fas fa-exclamation-triangle me-2"></i>Confirmar Exclusão da Vaga
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="text-center mb-3">
+                    <i class="fas fa-briefcase text-danger" style="font-size: 48px;"></i>
+                </div>
+                <p class="text-center mb-3">
+                    Tem certeza que deseja excluir a vaga <strong>{{ job.title }}</strong>?
+                </p>
+                <div class="alert alert-danger mb-0">
+                    <i class="fas fa-exclamation-circle me-2"></i>
+                    <strong>ATENÇÃO:</strong> Todos os <strong>{{ candidates|length }} candidato(s)</strong> desta vaga também serão excluídos permanentemente!
+                    <br><br>
+                    <i class="fas fa-times-circle me-2"></i>
+                    Esta ação não pode ser desfeita!
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-2"></i>Cancelar
+                </button>
+                <form method="POST" action="{{ url_for('delete_job', job_id=job.id) }}" style="display: inline;">
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-trash me-2"></i>Sim, Excluir Tudo
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
+
 {% block scripts %}
     {{ super() }}
     <script>
-        // Adicione scripts específicos da página aqui, se necessário
+        // Script para confirmar exclusão (segurança extra)
+        document.querySelectorAll('form[action*="delete"]').forEach(form => {
+            form.addEventListener('submit', function(e) {
+                // Modal já faz a confirmação visual, então apenas deixa o submit acontecer
+                console.log('Exclusão confirmada via modal');
+            });
+        });
     </script>
 {% endblock %}

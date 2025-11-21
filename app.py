@@ -469,6 +469,43 @@ def metrics():
                          seniority_counts=seniority_counts,
                          jobs=jobs)
 
+@app.route('/jobs/<int:job_id>/delete', methods=['POST'])
+@login_required
+def delete_job(job_id):
+    """Excluir vaga"""
+    job = Job.query.get_or_404(job_id)
+    
+    # Excluir todos os candidatos da vaga primeiro
+    Candidate.query.filter_by(job_id=job_id).delete()
+    
+    # Excluir a vaga
+    db.session.delete(job)
+    db.session.commit()
+    
+    flash(f'Vaga "{job.title}" excluída com sucesso!', 'success')
+    return redirect(url_for('jobs'))
+
+@app.route('/candidates/<int:candidate_id>/delete', methods=['POST'])
+@login_required
+def delete_candidate(candidate_id):
+    """Excluir candidato"""
+    candidate = Candidate.query.get_or_404(candidate_id)
+    job_id = candidate.job_id
+    
+    # Excluir arquivo do currículo se existir
+    if candidate.resume_path and os.path.exists(candidate.resume_path):
+        try:
+            os.remove(candidate.resume_path)
+        except:
+            pass
+    
+    # Excluir candidato
+    db.session.delete(candidate)
+    db.session.commit()
+    
+    flash(f'Candidato "{candidate.name}" excluído com sucesso!', 'success')
+    return redirect(url_for('job_detail', job_id=job_id))
+
 # ==================== INICIALIZAÇÃO ====================
 with app.app_context():
     try:

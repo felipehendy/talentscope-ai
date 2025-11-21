@@ -17,6 +17,27 @@
         </div>
     </div>
 
+    <!-- 🔥 NOVO: Cabeçalho com Botão de Excluir -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2 class="mb-0">
+                        <i class="fas fa-user-tie me-2 text-primary"></i>
+                        {{ candidate.name }}
+                    </h2>
+                    <p class="text-muted mb-0">Candidato para {{ candidate.job.title }}</p>
+                </div>
+                <div>
+                    <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteCandidateModal">
+                        <i class="fas fa-trash me-2"></i>Excluir Candidato
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- 🔥 FIM DO NOVO CABEÇALHO -->
+
     <div class="row">
         <!-- Coluna Esquerda: Info do Candidato -->
         <div class="col-lg-4 mb-4">
@@ -142,29 +163,16 @@
         <!-- Coluna Direita: Análise AI -->
         <div class="col-lg-8">
             <!-- Score AI -->
-             <!-- Coluna Direita: Análise AI -->
-<div class="col-lg-8">
-    <!-- Score AI -->
-    <div class="card mb-4">
-        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-            <h5 class="mb-0"><i class="fas fa-brain me-2"></i>Análise IA - TalentScope</h5>
-            
-            <!-- NOVO BOTÃO DE REANÁLISE -->
-            <form method="POST" action="{{ url_for('reanalyze_candidate', candidate_id=candidate.id) }}" class="m-0">
-                <button type="submit" class="btn btn-sm btn-warning" title="Reanalisar Candidato com a IA">
-                    <i class="fas fa-sync-alt me-1"></i> Reanalisar IA
-                </button>
-            </form>
-            <!-- FIM DO NOVO BOTÃO -->
-            
-        </div>
-        <div class="card-body">
-            <!-- ... o restante do card-body permanece o mesmo ... -->
-
-
             <div class="card mb-4">
-                <div class="card-header bg-primary text-white">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
                     <h5 class="mb-0"><i class="fas fa-brain me-2"></i>Análise IA - TalentScope</h5>
+                    
+                    <!-- Botão de Reanálise -->
+                    <form method="POST" action="{{ url_for('reanalyze_candidate', candidate_id=candidate.id) }}" class="m-0">
+                        <button type="submit" class="btn btn-sm btn-warning" title="Reanalisar Candidato com a IA">
+                            <i class="fas fa-sync-alt me-1"></i> Reanalisar IA
+                        </button>
+                    </form>
                 </div>
                 <div class="card-body">
                     <div class="row text-center mb-4">
@@ -192,7 +200,7 @@
 
                     {% if analysis %}
                         {% if analysis.error %}
-                            <!-- NOVO BLOCO PARA EXIBIÇÃO DE ERRO MAIS LIMPA -->
+                            <!-- Exibição de Erro -->
                             <div class="alert alert-danger mb-4">
                                 <h6 class="alert-heading"><i class="fas fa-exclamation-circle me-2"></i>Erro na Análise de IA</h6>
                                 <p class="mb-0">
@@ -206,7 +214,6 @@
                                     <strong>Recomendação:</strong> Verifique a chave de API da OpenAI no seu arquivo de configuração.
                                 </p>
                             </div>
-                            <!-- FIM DO NOVO BLOCO -->
                         {% else %}
                             <div class="row">
                                 <div class="col-md-6 mb-3">
@@ -270,6 +277,43 @@
     </div>
 </div>
 
+<!-- 🔥 MODAL DE CONFIRMAÇÃO PARA EXCLUIR -->
+<div class="modal fade" id="deleteCandidateModal" tabindex="-1" aria-labelledby="deleteCandidateModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="deleteCandidateModalLabel">
+                    <i class="fas fa-exclamation-triangle me-2"></i>Confirmar Exclusão
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="text-center mb-3">
+                    <i class="fas fa-trash-alt text-danger" style="font-size: 48px;"></i>
+                </div>
+                <p class="text-center mb-3">
+                    Tem certeza que deseja excluir o candidato <strong>{{ candidate.name }}</strong>?
+                </p>
+                <div class="alert alert-danger mb-0">
+                    <i class="fas fa-exclamation-circle me-2"></i>
+                    <strong>Atenção:</strong> Esta ação não pode ser desfeita! 
+                    O currículo e todas as análises serão permanentemente removidos.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-2"></i>Cancelar
+                </button>
+                <form method="POST" action="{{ url_for('delete_candidate', candidate_id=candidate.id) }}" style="display: inline;">
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-trash me-2"></i>Sim, Excluir Definitivamente
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
 <style>
 @media (max-width: 768px) {
     .btn {
@@ -284,6 +328,16 @@
     .card {
         margin-bottom: 15px;
     }
+}
+
+/* Animação do Modal */
+.modal.fade .modal-dialog {
+    transition: transform .3s ease-out;
+}
+
+.modal-content {
+    border: none;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.2);
 }
 </style>
 {% endblock %}
