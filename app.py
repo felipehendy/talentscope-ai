@@ -99,10 +99,10 @@ class User(UserMixin, db.Model):
 class Job(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(200), nullable=False)
-    description = db.Column(db.Text)
-    requirements = db.Column(db.Text)
+    description = db.Column(db.Text, nullable=True)  # ✅ Permite NULL
+    requirements = db.Column(db.Text, nullable=True)  # ✅ Permite NULL
     status = db.Column(db.String(20), default='active')
-    created_by = db.Column(db.Integer, db.ForeignKey('user.id'))
+    created_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)  # ✅ Permite NULL
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     candidates = db.relationship('Candidate', backref='job', lazy=True)
 
@@ -474,6 +474,51 @@ INFORMAÇÕES DISPONÍVEIS:
         print(f"❌ Erro no processamento em massa: {str(e)}")
 
 # ==================== ROTAS ====================
+
+@app.route('/debug/test-job-creation')
+@login_required
+def debug_test_job():
+    """Rota de teste - REMOVER após debug"""
+    try:
+        # Teste 1: Verificar estrutura da tabela
+        from sqlalchemy import inspect
+        inspector = inspect(db.engine)
+        columns = inspector.get_columns('job')
+        
+        result = {
+            'columns': [{'name': col['name'], 'type': str(col['type']), 'nullable': col['nullable']} for col in columns],
+            'current_user_id': current_user.id,
+            'current_user_name': current_user.username,
+            'job_count': Job.query.count()
+        }
+        
+        # Teste 2: Tentar criar uma vaga de teste
+        try:
+            test_job = Job(
+                title='TESTE - Vaga Debug',
+                description='Teste de criação',
+                requirements='Teste de requisitos',
+                status='active',
+                created_by=current_user.id
+            )
+            db.session.add(test_job)
+            db.session.commit()
+            
+            result['test_creation'] = 'SUCCESS'
+            result['test_job_id'] = test_job.id
+            
+            # Deletar a vaga de teste
+            db.session.delete(test_job)
+            db.session.commit()
+            
+        except Exception as e:
+            db.session.rollback()
+            result['test_creation'] = f'FAILED: {str(e)}'
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/candidates/<int:candidate_id>/schedule-interview', methods=['GET', 'POST'])
 @login_required
@@ -1168,43 +1213,88 @@ def jobs():
 @app.route('/jobs/new', methods=['GET', 'POST'])
 @login_required
 def new_job():
-    """Criar nova vaga - Versão segura"""
+    """Criar nova vaga - Versão corrigida e segura"""
     try:
         if request.method == 'POST':
             try:
-                # Validação básica dos dados
-                title = request.form.get('title')
-                description = request.form.get('description')
-                requirements = request.form.get('requirements')
+                # Debug: Log do recebimento do POST
+                print("🔵 POST recebido em /jobs/new")
+                print(f"🔵 Form data: {request.form}")
+                
+                # Capturar dados do formulário
+                title = request.form.get('title', '').strip()
+                description = request.form.get('description', '').strip()
+                requirements = request.form.get('requirements', '').strip()
 
+                print(f"📝 Título: {title}")
+                print(f"📝 Descrição: {description[:50] if description else 'Vazio'}")
+                print(f"📝 Requisitos: {requirements[:50] if requirements else 'Vazio'}")
+
+                # Validação básica
                 if not title:
                     flash('O título da vaga é obrigatório!', 'danger')
-                    return redirect(url_for('new_job'))
+                    return render_template('new_job.html')
 
-                # Criar vaga
+                if len(title) < 3:
+                    flash('O título deve ter pelo menos 3 caracteres!', 'danger')
+                    return render_template('new_job.html')
+
+                # Log antes de criar
+                print(f"✅ Validação OK. Criando vaga...")
+                print(f"👤 User ID: {current_user.id}")
+
+                # Criar vaga com valores padrão seguros
                 job = Job(
-                    title=title.strip(),
-                    description=description.strip() if description else '',
-                    requirements=requirements.strip() if requirements else '',
+                    title=title,
+                    description=description if description else '',
+                    requirements=requirements if requirements else '',
+                    status='active',
                     created_by=current_user.id
                 )
                 
+                # Adicionar ao banco
                 db.session.add(job)
+                db.session.flush()  # Flush para obter o ID antes do commit
+                
+                print(f"💾 Job adicionado à sessão. ID será: {job.id}")
+                
+                # Commit
                 db.session.commit()
                 
-                flash('Vaga criada com sucesso!', 'success')
+                print(f"✅ Vaga criada com sucesso! ID: {job.id}")
+                flash(f'Vaga "{title}" criada com sucesso!', 'success')
+                
                 return redirect(url_for('jobs'))
                 
             except Exception as e:
-                db.session.rollback()  # Rollback em caso de erro
+                # Rollback em caso de erro
+                db.session.rollback()
+                
+                # Log detalhado do erro
+                print(f"❌ ERRO ao criar vaga:")
+                print(f"   Tipo: {type(e).__name__}")
+                print(f"   Mensagem: {str(e)}")
+                
+                import traceback
+                print(f"   Stack trace:")
+                print(traceback.format_exc())
+                
+                # Mensagem amigável para o usuário
                 flash(f'Erro ao criar vaga: {str(e)}', 'danger')
-                print(f"❌ Erro ao criar vaga: {e}")
+                return render_template('new_job.html')
         
-        # GET - Mostrar formulário
+        # GET - Exibir formulário
+        print("📄 Exibindo formulário de nova vaga")
         return render_template('new_job.html')
                              
     except Exception as e:
-        print(f"❌ Erro crítico em new_job: {e}")
+        print(f"❌ ERRO CRÍTICO em new_job:")
+        print(f"   Tipo: {type(e).__name__}")
+        print(f"   Mensagem: {str(e)}")
+        
+        import traceback
+        print(traceback.format_exc())
+        
         flash('Erro interno do servidor. Tente novamente.', 'danger')
         return redirect(url_for('jobs'))
 
