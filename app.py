@@ -901,36 +901,50 @@ def reanalyze_all_candidates(job_id):
 @app.route('/candidate-space')
 @login_required
 def candidate_space():
-    """Página do Espaço Candidato - Top 10 Ranking com dados REAIS"""
-    
-    # Buscar TODOS os candidatos com score do banco de dados
-    all_candidates = Candidate.query.filter(
-        Candidate.ai_score.isnot(None)
-    ).order_by(Candidate.ai_score.desc()).limit(50).all()
-    
-    # Processar dados para o template
-    top_candidates = []
-    for i, candidate in enumerate(all_candidates[:10]):  # Top 10
-        # Extrair localização do texto do currículo
-        city, state = extract_city_state_from_text(candidate.resume_text or "")
+    """Página do Espaço Candidato - Versão segura sem linkedin_url"""
+    try:
+        # Buscar candidatos com score (consulta segura)
+        all_candidates = Candidate.query.filter(
+            Candidate.ai_score.isnot(None)
+        ).order_by(Candidate.ai_score.desc()).limit(50).all()
         
-        # Calcular scores baseados nos dados reais
-        top_candidates.append({
-            'id': candidate.id,
-            'name': candidate.name,
-            'email': candidate.email,
-            'score': candidate.ai_score or 0,
-            'city': city or "Não informada",
-            'state': state or "NI",
-            'experience': estimate_experience(candidate.resume_text or ""),
-            'education': extract_education(candidate.resume_text or ""),
-            'tech_score': candidate.ai_score or 0,
-            'location_score': 75,  # Placeholder por enquanto
-            'exp_score': 80,       # Placeholder por enquanto
-            'phone': candidate.phone
-        })
-    
-    return render_template('candidate_space.html', top_candidates=top_candidates)
+        # Processar dados para o template
+        top_candidates = []
+        for i, candidate in enumerate(all_candidates[:10]):  # Top 10
+            # Extrair localização do texto do currículo
+            city, state = extract_city_state_from_text(candidate.resume_text or "")
+            
+            # ✅ DADOS SEGUROS - sem linkedin_url
+            candidate_data = {
+                'id': candidate.id,
+                'name': candidate.name,
+                'email': candidate.email,
+                'score': candidate.ai_score or 0,
+                'city': city or "Não informada",
+                'state': state or "NI",
+                'experience': estimate_experience(candidate.resume_text or ""),
+                'education': extract_education(candidate.resume_text or ""),
+                'tech_score': candidate.ai_score or 0,
+                'phone': candidate.phone or "Não informado"
+            }
+            
+            # ✅ Tentar acessar linkedin_url apenas se existir
+            try:
+                if hasattr(candidate, 'linkedin_url') and candidate.linkedin_url:
+                    candidate_data['linkedin_url'] = candidate.linkedin_url
+                else:
+                    candidate_data['linkedin_url'] = None
+            except:
+                candidate_data['linkedin_url'] = None
+                
+            top_candidates.append(candidate_data)
+        
+        return render_template('candidate_space.html', top_candidates=top_candidates)
+        
+    except Exception as e:
+        print(f"❌ Erro no Espaço Candidato: {e}")
+        # Fallback: retorna lista vazia
+        return render_template('candidate_space.html', top_candidates=[])
 
 @app.route('/')
 def index():
