@@ -1168,20 +1168,45 @@ def jobs():
 @app.route('/jobs/new', methods=['GET', 'POST'])
 @login_required
 def new_job():
-    if request.method == 'POST':
-        job = Job(
-            title=request.form.get('title'),
-            description=request.form.get('description'),
-            requirements=request.form.get('requirements'),
-            created_by=current_user.id
-        )
-        db.session.add(job)
-        db.session.commit()
+    """Criar nova vaga - Versão segura"""
+    try:
+        if request.method == 'POST':
+            try:
+                # Validação básica dos dados
+                title = request.form.get('title')
+                description = request.form.get('description')
+                requirements = request.form.get('requirements')
+
+                if not title:
+                    flash('O título da vaga é obrigatório!', 'danger')
+                    return redirect(url_for('new_job'))
+
+                # Criar vaga
+                job = Job(
+                    title=title.strip(),
+                    description=description.strip() if description else '',
+                    requirements=requirements.strip() if requirements else '',
+                    created_by=current_user.id
+                )
+                
+                db.session.add(job)
+                db.session.commit()
+                
+                flash('Vaga criada com sucesso!', 'success')
+                return redirect(url_for('jobs'))
+                
+            except Exception as e:
+                db.session.rollback()  # Rollback em caso de erro
+                flash(f'Erro ao criar vaga: {str(e)}', 'danger')
+                print(f"❌ Erro ao criar vaga: {e}")
         
-        flash('Vaga criada com sucesso!', 'success')
+        # GET - Mostrar formulário
+        return render_template('new_job.html')
+                             
+    except Exception as e:
+        print(f"❌ Erro crítico em new_job: {e}")
+        flash('Erro interno do servidor. Tente novamente.', 'danger')
         return redirect(url_for('jobs'))
-    
-    return render_template('new_job.html')
 
 @app.route('/jobs/<int:job_id>')
 @login_required
