@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - TalentScope AI</title>
+    
+    <!-- Ícones e Fontes -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --d1000-yellow: #F7B500;
+            --d1000-orange: #E85D2A;
+            --d1000-green: #5CB85C;
+            --d1000-blue: #0275D8;
+            --d1000-dark: #2C3E50;
+            --shadow-lg: 0 10px 40px rgba(0,0,0,0.15 );
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+        }
+
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #1d2b3a, #2C3E50);
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* Efeito dinâmico de fundo */
+        .background-shapes {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            z-index: 0;
+        }
+
+        .background-shapes div {
+            position: absolute;
+            display: block;
+            width: 20px;
+            height: 20px;
+            background: rgba(255, 255, 255, 0.05);
+            bottom: -150px;
+            animation: animate 25s linear infinite;
+            border-radius: 8px;
+        }
+        .background-shapes div:nth-child(1) { left: 25%; width: 80px; height: 80px; animation-delay: 0s; }
+        .background-shapes div:nth-child(2) { left: 10%; width: 20px; height: 20px; animation-delay: 2s; animation-duration: 12s; }
+        .background-shapes div:nth-child(3) { left: 70%; width: 20px; height: 20px; animation-delay: 4s; }
+        .background-shapes div:nth-child(4) { left: 40%; width: 60px; height: 60px; animation-delay: 0s; animation-duration: 18s; }
+        .background-shapes div:nth-child(5) { left: 65%; width: 20px; height: 20px; animation-delay: 0s; }
+        .background-shapes div:nth-child(6) { left: 75%; width: 110px; height: 110px; animation-delay: 3s; }
+        .background-shapes div:nth-child(7) { left: 35%; width: 150px; height: 150px; animation-delay: 7s; }
+        .background-shapes div:nth-child(8) { left: 50%; width: 25px; height: 25px; animation-delay: 15s; animation-duration: 45s; }
+        .background-shapes div:nth-child(9) { left: 20%; width: 15px; height: 15px; animation-delay: 2s; animation-duration: 35s; }
+        .background-shapes div:nth-child(10) { left: 85%; width: 150px; height: 150px; animation-delay: 0s; animation-duration: 11s; }
+
+        @keyframes animate {
+            0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+            100% { transform: translateY(-120vh) rotate(720deg); opacity: 0; }
+        }
+
+        .login-container {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            background: white;
+            border-radius: 16px;
+            box-shadow: var(--shadow-lg);
+            overflow: hidden;
+            width: 90%;
+            height: 85vh;
+            max-width: 1100px;
+        }
+
+        /* Lado Esquerdo */
+        .brand-side {
+            flex: 0 0 50%;
+            background-color: var(--d1000-dark);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 3rem;
+            text-align: center;
+        }
+        .brand-logo-container { margin-bottom: 2rem; }
+        .brand-logo-container img { max-width: 250px; height: auto; }
+        .brand-side .slogan { font-size: 2.2rem; font-weight: 700; line-height: 1.2; margin-bottom: 1rem; }
+        .brand-side .subtitle { font-size: 1.1rem; opacity: 0.8; max-width: 90%; }
+
+        /* Lado Direito */
+        .form-side {
+            flex: 1;
+            padding: 2rem 3rem; /* Ajustado padding vertical */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            background: #fff;
+            overflow-y: auto; /* Permite rolagem se o conteúdo for grande */
+        }
+        
+        /* Estilo para o header do agente */
+        .agent-header {
+            text-align: center;
+            margin-bottom: 1rem;
+        }
+        .agent-header img {
+            max-width: 150px; /* Tamanho da imagem do agente */
+            height: auto;
+            border-radius: 50%;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        }
+
+        .form-header h2 { font-size: 1.75rem; color: var(--d1000-dark); margin-bottom: 0.5rem; font-weight: 700; }
+        .form-header p { color: #6b7280; font-size: 0.9rem; }
+        .form-group { margin-bottom: 1.2rem; } /* Espaçamento ajustado */
+        .form-label { display: block; margin-bottom: 0.5rem; font-weight: 600; color: var(--d1000-dark); font-size: 0.875rem; }
+        .input-icon { position: relative; }
+        .input-icon i { position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: #9ca3af; transition: color 0.2s ease; }
+        .form-control { width: 100%; padding: 0.875rem 1rem 0.875rem 3rem; border: 1px solid #d1d5db; border-radius: 8px; font-size: 0.9rem; transition: all 0.2s ease; }
+        .form-control:focus { outline: none; border-color: var(--d1000-blue); box-shadow: 0 0 0 3px rgba(2, 117, 216, 0.1); }
+        .form-control:focus ~ i { color: var(--d1000-blue); }
+        .btn-submit { width: 100%; padding: 1rem; border: none; border-radius: 8px; background: linear-gradient(135deg, var(--d1000-blue), #0056b3); color: white; font-size: 1rem; font-weight: 600; cursor: pointer; transition: all 0.3s ease; box-shadow: 0 4px 12px rgba(2, 117, 216, 0.3); display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
+        .btn-submit:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(2, 117, 216, 0.4); }
+        .form-footer { margin-top: 1.5rem; text-align: center; font-size: 0.875rem; }
+        .form-footer a { color: var(--d1000-blue); text-decoration: none; font-weight: 600; }
+        .form-footer a:hover { text-decoration: underline; }
+        .alert-danger { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; border-radius: 8px; padding: 1rem; margin-bottom: 1.5rem; font-size: 0.9rem; }
+        .default-credentials { background: #fff3cd; border: 1px solid #ffeeba; border-radius: 8px; padding: 1rem; margin-top: 1.5rem; font-size: 0.9rem; }
+
+        /* Responsividade */
+        @media (max-width: 900px) {
+            body { align-items: flex-start; background: #fff; }
+            .login-container { flex-direction: column; height: auto; width: 100%; border-radius: 0; box-shadow: none; }
+            .brand-side { display: none; }
+            .form-side { padding: 2rem; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Efeito dinâmico de fundo -->
+    <div class="background-shapes">
+        <div></div><div></div><div></div><div></div><div></div>
+        <div></div><div></div><div></div><div></div><div></div>
+    </div>
+
+    <div class="login-container">
+        <!-- Lado Esquerdo (Marca) -->
+        <div class="brand-side">
+            <div class="brand-logo-container">
+                <!-- Use sua própria imagem de logo aqui -->
+                <img src="{{ url_for('static', filename='Marca.png') }}" alt="Logo TalentScope AI">
+            </div>
+            <div class="brand-text-container">
+                <p class="slogan">Inteligência Artificial  
+para Recrutamento</p>
+                <p class="subtitle">Encontre os melhores talentos de forma rápida e precisa.</p>
+            </div>
+        </div>
+
+        <!-- Lado Direito (Formulário) -->
+        <div class="form-side">
+            
+            <!-- ▼▼▼ IMAGEM DO AGENTE ADICIONADA AQUI ▼▼▼ -->
+            <div class="agent-header">
+                <img src="{{ url_for('static', filename='agente.png') }}" alt="Agente TalentScope">
+            </div>
+
+            <div class="form-header" style="text-align: center;">
+                <h2>Bem-vindo de volta!</h2>
+                <p>Faça o login para acessar seu painel.</p>
+            </div>
+            
+            <!-- Exibição de Mensagens de Erro (Flash) -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        {% if category == 'danger' %}
+                            <div class="alert-danger">
+                                <i class="fas fa-exclamation-triangle"></i> {{ message }}
+                            </div>
+                        {% endif %}
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <!-- Formulário de Login -->
+            <form method="POST" action="{{ url_for('login') }}">
+                <div class="form-group">
+                    <label for="username" class="form-label">Usuário</label>
+                    <div class="input-icon">
+                        <input type="text" id="username" name="username" class="form-control" placeholder="Digite seu nome de usuário" required>
+                        <i class="fas fa-user"></i>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="password" class="form-label">Senha</label>
+                    <div class="input-icon">
+                        <input type="password" id="password" name="password" class="form-control" placeholder="••••••••" required>
+                        <i class="fas fa-lock"></i>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn-submit">
+                    <i class="fas fa-sign-in-alt"></i> Entrar
+                </button>
+            </form>
+
+            <!-- Aviso de Primeiro Acesso -->
+            {% if show_warning %}
+            <div class="default-credentials">
+                <strong><i class="fas fa-info-circle"></i> Primeiro Acesso:</strong>
+                Usuário: <strong>admin</strong> / Senha: <strong>admin123</strong>
+            </div>
+            {% endif %}
+
+            <div class="form-footer">
+                <p>Ainda não tem uma conta? <a href="{{ url_for('register') }}">Crie uma agora</a></p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

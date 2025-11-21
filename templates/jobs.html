@@ -1,0 +1,256 @@
+{% extends "base.html" %}
+
+{% block title %}Vagas - TalentScope AI{% endblock %}
+
+{% block content %}
+<style>
+    :root {
+        --d1000-yellow: #F7B500;
+        --d1000-orange: #E85D2A;
+        --d1000-green: #5CB85C;
+        --d1000-blue: #0275D8;
+        --d1000-dark: #2C3E50;
+    }
+    
+    .page-header {
+        background: linear-gradient(135deg, var(--d1000-blue) 0%, var(--d1000-dark) 100%);
+        color: white;
+        padding: 2rem;
+        border-radius: 15px;
+        margin-bottom: 2rem;
+        box-shadow: 0 10px 30px rgba(2, 117, 216, 0.3);
+    }
+    
+    .page-header h1 {
+        font-size: 2rem;
+        font-weight: 700;
+        margin-bottom: 0;
+    }
+    
+    .btn-primary {
+        background: linear-gradient(135deg, var(--d1000-green) 0%, #4CAF50 100%);
+        border: none;
+        padding: 0.75rem 1.5rem;
+        border-radius: 10px;
+        font-weight: 600;
+        box-shadow: 0 5px 15px rgba(92, 184, 92, 0.3);
+        transition: all 0.3s ease;
+    }
+    
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(92, 184, 92, 0.4);
+        background: linear-gradient(135deg, #4CAF50 0%, var(--d1000-green) 100%);
+    }
+    
+    .job-card {
+        border: none;
+        border-radius: 15px;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+        transition: all 0.3s ease;
+        overflow: hidden;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        position: relative;
+    }
+    
+    .job-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 5px;
+        background: linear-gradient(90deg, var(--d1000-blue) 0%, var(--d1000-dark) 100%);
+    }
+    
+    .job-card:hover {
+        transform: translateY(-8px);
+        box-shadow: 0 15px 40px rgba(0,0,0,0.15);
+    }
+    
+    .job-card .card-body {
+        padding: 2rem;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .job-card .card-title {
+        font-size: 1.4rem;
+        font-weight: 700;
+        color: var(--d1000-dark);
+        margin-bottom: 1rem;
+        line-height: 1.3;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+    
+    .job-card .card-text {
+        color: #718096;
+        line-height: 1.6;
+        margin-bottom: 1.5rem;
+        flex: 1;
+        font-size: 0.95rem;
+    }
+    
+    .job-card .card-footer {
+        background: #f7fafc;
+        border: none;
+        padding: 1rem 2rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .candidate-badge {
+        background: linear-gradient(135deg, var(--d1000-green) 0%, #4CAF50 100%);
+        color: white;
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        font-weight: 600;
+        font-size: 0.9rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .date-text {
+        color: #718096;
+        font-size: 0.85rem;
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .btn-details {
+        background: linear-gradient(135deg, var(--d1000-blue) 0%, var(--d1000-dark) 100%);
+        border: none;
+        padding: 0.6rem 1.5rem;
+        border-radius: 8px;
+        font-weight: 600;
+        color: white;
+        transition: all 0.3s ease;
+        font-size: 0.9rem;
+    }
+    
+    .btn-details:hover {
+        transform: scale(1.05);
+        box-shadow: 0 5px 15px rgba(2, 117, 216, 0.3);
+        color: white;
+    }
+    
+    .empty-state {
+        background: linear-gradient(135deg, var(--d1000-blue) 0%, var(--d1000-dark) 100%);
+        border: none;
+        border-radius: 15px;
+        color: white;
+        padding: 3rem 2rem;
+        text-align: center;
+        box-shadow: 0 10px 30px rgba(2, 117, 216, 0.2);
+    }
+    
+    .empty-state i {
+        font-size: 4rem;
+        margin-bottom: 1.5rem;
+        opacity: 0.9;
+    }
+    
+    .empty-state h3 {
+        font-weight: 700;
+        margin-bottom: 1rem;
+    }
+    
+    .empty-state p {
+        font-size: 1.1rem;
+        margin-bottom: 2rem;
+        opacity: 0.9;
+    }
+    
+    .empty-state .btn {
+        background: white;
+        color: var(--d1000-blue);
+        border: none;
+        padding: 0.75rem 2rem;
+        border-radius: 10px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+    
+    .empty-state .btn:hover {
+        transform: scale(1.05);
+        box-shadow: 0 5px 15px rgba(255, 255, 255, 0.3);
+    }
+    
+    .jobs-count {
+        display: inline-block;
+        background: rgba(255, 255, 255, 0.2);
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        margin-left: 1rem;
+        font-size: 0.9rem;
+        font-weight: 600;
+    }
+</style>
+
+<div class="page-header">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+        <div>
+            <h1>
+                <i class="fas fa-briefcase me-3"></i>Vagas
+                {% if jobs %}
+                <span class="jobs-count">{{ jobs|length }}</span>
+                {% endif %}
+            </h1>
+        </div>
+        <a href="{{ url_for('new_job') }}" class="btn btn-primary">
+            <i class="fas fa-plus me-2"></i>Nova Vaga
+        </a>
+    </div>
+</div>
+
+{% if jobs %}
+<div class="row">
+    {% for job in jobs %}
+    <div class="col-md-6 col-lg-4 mb-4">
+        <div class="card job-card">
+            <div class="card-body">
+                <h5 class="card-title">{{ job.title }}</h5>
+                <p class="card-text">
+                    {{ job.description[:120] }}{% if job.description|length > 120 %}...{% endif %}
+                </p>
+                <div class="d-flex justify-content-between align-items-center mt-auto">
+                    <span class="candidate-badge">
+                        <i class="fas fa-users"></i>
+                        {{ job.candidates|length }}
+                    </span>
+                    <a href="{{ url_for('job_detail', job_id=job.id) }}" class="btn btn-details">
+                        Ver Detalhes <i class="fas fa-arrow-right ms-1"></i>
+                    </a>
+                </div>
+            </div>
+            <div class="card-footer">
+                <span class="date-text">
+                    <i class="fas fa-calendar-alt"></i>
+                    Criada em {{ job.created_at.strftime('%d/%m/%Y') }}
+                </span>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="empty-state">
+    <i class="fas fa-briefcase"></i>
+    <h3>Nenhuma vaga cadastrada</h3>
+    <p>Comece criando sua primeira vaga e encontre os melhores candidatos!</p>
+    <a href="{{ url_for('new_job') }}" class="btn">
+        <i class="fas fa-plus me-2"></i>Criar Primeira Vaga
+    </a>
+</div>
+{% endif %}
+{% endblock %}

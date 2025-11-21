@@ -1,0 +1,199 @@
+{% extends "base.html" %}
+
+{% block title %}{{ job.title }} - TalentScope AI{% endblock %}
+
+{% block content %}
+<style>
+    :root {
+        --d1000-yellow: #F7B500;
+        --d1000-orange: #E85D2A;
+        --d1000-green: #5CB85C;
+        --d1000-blue: #0275D8;
+        --d1000-dark: #2C3E50;
+    }
+    
+    .page-header {
+        background: linear-gradient(135deg, var(--d1000-blue) 0%, var(--d1000-dark) 100%);
+        color: white;
+        padding: 2rem;
+        border-radius: 15px;
+        margin-bottom: 2rem;
+        box-shadow: 0 10px 30px rgba(2, 117, 216, 0.3);
+    }
+    
+    .page-header h1 {
+        font-size: 2rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+    }
+    
+    .card {
+        border: none;
+        border-radius: 15px;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+        overflow: hidden;
+    }
+    
+    .card-header {
+        background: linear-gradient(135deg, var(--d1000-blue) 0%, var(--d1000-dark) 100%);
+        border: none;
+        padding: 1.25rem 1.5rem;
+    }
+    
+    .card-header h5 {
+        font-weight: 600;
+        letter-spacing: 0.5px;
+    }
+    
+    /* Estilo para garantir a quebra de linha na descrição */
+    .description-text {
+        white-space: pre-wrap; 
+    }
+    
+    .list-group-item {
+        border: none;
+        padding: 0.75rem 0;
+    }
+    
+    .list-group-item:last-child {
+        border-bottom: none;
+    }
+    
+    .list-group-item i {
+        color: var(--d1000-blue);
+        margin-right: 0.5rem;
+    }
+    
+    /* Estilo para o botão do WhatsApp */
+    .btn-whatsapp {
+        background-color: #25D366;
+        color: white;
+    }
+    .btn-whatsapp:hover {
+        background-color: #128C7E;
+        color: white;
+    }
+</style>
+
+<div class="page-header">
+    <div class="d-flex justify-content-between align-items-center">
+        <h1><i class="fas fa-briefcase me-3"></i>{{ job.title }}</h1>
+        <a href="{{ url_for('new_candidate', job_id=job.id) }}" class="btn btn-success">
+            <i class="fas fa-user-plus me-2"></i>Adicionar Candidato
+        </a>
+    </div>
+</div>
+
+<!-- Seção de Descrição e Requisitos (Largura Total) -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Descrição e Requisitos</h5>
+            </div>
+            <div class="card-body p-4">
+                <!-- Seção de Descrição -->
+                <h6 class="text-primary mb-3"><i class="fas fa-file-alt me-2"></i>Descrição da Vaga</h6>
+                <p class="description-text mb-4">
+                    {{ job.description }}
+                </p>
+                
+                <!-- Seção de Requisitos (movida para dentro da Descrição) -->
+                <h6 class="text-primary mb-3"><i class="fas fa-check-circle me-2"></i>Requisitos</h6>
+                {% if job.requirements %}
+                    <ul class="list-group list-group-flush">
+                        {% for requirement in job.requirements.split('\n') %}
+                            {% if requirement.strip() %}
+                                <li class="list-group-item">
+                                    <i class="fas fa-caret-right"></i>{{ requirement.strip() }}
+                                </li>
+                            {% endif %}
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p class="text-muted">Nenhum requisito específico listado.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Seção de Candidatos (Restaurada) -->
+<div class="card">
+    <div class="card-header bg-dark text-white">
+        <h5 class="mb-0"><i class="fas fa-users me-2"></i>Candidatos ({{ candidates|length }})</h5>
+    </div>
+    <div class="card-body">
+        {% if candidates %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Nome</th>
+                        <th>Email</th>
+                        <th>Telefone</th>
+                        <th>Score IA</th>
+                        <th>Status</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for candidate in candidates %}
+                    <tr>
+                        <td>
+                            <strong>{{ candidate.name }}</strong>
+                        </td>
+                        <td>{{ candidate.email }}</td>
+                        <td>{{ candidate.phone }}</td>
+                        <td>
+                            {% if candidate.ai_score %}
+                            <span class="badge rounded-pill {% if candidate.ai_score >= 80 %}bg-success{% elif candidate.ai_score >= 60 %}bg-warning text-dark{% else %}bg-danger{% endif %}">
+                                {{ candidate.ai_score|round(1) }}
+                            </span>
+                            {% else %}
+                            <span class="badge rounded-pill bg-secondary">N/A</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge rounded-pill {% if candidate.status == 'approved' %}bg-success{% elif candidate.status == 'rejected' %}bg-danger{% else %}bg-warning text-dark{% endif %}">
+                                {{ candidate.status }}
+                            </span>
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <a href="{{ url_for('candidate_detail', candidate_id=candidate.id) }}" 
+                                   class="btn btn-primary" title="Ver Detalhes">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                {% if candidate.phone %}
+                                <a href="{{ candidate.phone|whatsapp_link }}" 
+                                   class="btn btn-whatsapp" 
+                                   target="_blank"
+                                   title="WhatsApp">
+                                    <i class="fab fa-whatsapp"></i>
+                                </a>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="alert alert-info mb-0">
+            <i class="fas fa-info-circle me-2"></i>
+            Nenhum candidato cadastrado para esta vaga ainda.
+            <a href="{{ url_for('new_candidate', job_id=job.id) }}" class="alert-link">Adicionar primeiro candidato</a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock %}
+{% block scripts %}
+    {{ super() }}
+    <script>
+        // Adicione scripts específicos da página aqui, se necessário
+    </script>
+{% endblock %}

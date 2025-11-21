@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - TalentScope AI v2{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1><i class="fas fa-home me-3"></i>Dashboard</h1>
+</div>
+
+<!-- Stats Cards -->
+<div class="row mb-4">
+    <div class="col-md-4 mb-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <i class="fas fa-briefcase fa-3x mb-3" style="color: var(--d1000-blue);"></i>
+                <h3 class="mb-0">{{ jobs|length }}</h3>
+                <p class="text-muted mb-0">Vagas Ativas</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4 mb-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <i class="fas fa-users fa-3x mb-3" style="color: var(--d1000-green);"></i>
+                <h3 class="mb-0">{{ total_candidates }}</h3>
+                <p class="text-muted mb-0">Candidatos</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4 mb-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <i class="fas fa-calendar-check fa-3x mb-3" style="color: var(--d1000-yellow);"></i>
+                <h3 class="mb-0">{{ total_interviews }}</h3>
+                <p class="text-muted mb-0">Entrevistas</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Vagas Ativas -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="fas fa-briefcase me-2"></i>Vagas Ativas</span>
+        <a href="{{ url_for('create_job') }}" class="btn btn-primary btn-sm">
+            <i class="fas fa-plus me-2"></i>Nova Vaga
+        </a>
+    </div>
+    <div class="card-body">
+        {% if jobs %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Cargo</th>
+                        <th>Nível</th>
+                        <th class="d-none d-md-table-cell">Skills</th>
+                        <th>Candidatos</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for job in jobs %}
+                    <tr>
+                        <td><strong>{{ job.title }}</strong></td>
+                        <td><span class="badge bg-info">{{ job.level }}</span></td>
+                        <td class="d-none d-md-table-cell">
+                            {% set skills = job.skills_required|fromjson %}
+                            {% for skill in skills[:2] %}
+                                <span class="badge bg-secondary me-1">{{ skill }}</span>
+                            {% endfor %}
+                            {% if skills|length > 2 %}
+                                <span class="badge bg-secondary">+{{ skills|length - 2 }}</span>
+                            {% endif %}
+                        </td>
+                        <td><span class="badge bg-primary">{{ job.candidates|length }}</span></td>
+                        <td>
+                            <a href="{{ url_for('view_job', job_id=job.id) }}" class="btn btn-sm btn-primary">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                            <a href="{{ url_for('import_candidates', job_id=job.id) }}" class="btn btn-sm btn-success">
+                                <i class="fas fa-user-plus"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+            <i class="fas fa-inbox fa-4x text-muted mb-3"></i>
+            <h4 class="text-muted">Nenhuma vaga cadastrada</h4>
+            <p class="text-muted">Comece criando sua primeira vaga!</p>
+            <a href="{{ url_for('create_job') }}" class="btn btn-primary mt-3">
+                <i class="fas fa-plus me-2"></i>Criar Primeira Vaga
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

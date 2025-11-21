@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+
+{% block title %}Importar Candidatos - TalentScope AI{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1><i class="fas fa-user-plus me-3"></i>Importar Candidatos</h1>
+    <p class="text-muted mb-0">Vaga: <strong>{{ job.title }}</strong> - {{ job.level }}</p>
+</div>
+
+<div class="row">
+    <div class="col-md-4 mb-4">
+        <div class="card h-100">
+            <div class="card-header" style="background: #0077B5; color: white;">
+                <i class="fab fa-linkedin me-2"></i>Via LinkedIn
+            </div>
+            <div class="card-body">
+                <form method="POST" enctype="multipart/form-data">
+                    <input type="hidden" name="import_type" value="linkedin">
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Nome *</label>
+                        <input type="text" class="form-control" name="candidate_name" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">E-mail</label>
+                        <input type="email" class="form-control" name="candidate_email">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">URL LinkedIn *</label>
+                        <input type="url" class="form-control" name="linkedin_url" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Copie o Perfil *</label>
+                        <textarea class="form-control" name="profile_text" rows="6" required placeholder="Cole aqui o texto do perfil do LinkedIn"></textarea>
+                        <small class="text-muted">Copie e cole as informações do perfil</small>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fab fa-linkedin me-2"></i>Importar
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4 mb-4">
+        <div class="card h-100">
+            <div class="card-header" style="background: var(--d1000-orange); color: white;">
+                <i class="fas fa-file-pdf me-2"></i>Via PDF
+            </div>
+            <div class="card-body">
+                <form method="POST" enctype="multipart/form-data">
+                    <input type="hidden" name="import_type" value="pdf">
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Currículos PDF *</label>
+                        <input type="file" class="form-control" name="pdf_files" accept=".pdf" multiple required>
+                        <small class="text-muted">Múltiplos arquivos permitidos</small>
+                    </div>
+                    
+                    <div class="alert alert-info small">
+                        <i class="fas fa-info-circle me-2"></i>
+                        A IA extrairá automaticamente nome, contatos, skills e experiência
+                    </div>
+                    
+                    <button type="submit" class="btn btn-warning w-100" style="color: var(--d1000-dark);">
+                        <i class="fas fa-upload me-2"></i>Upload
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4 mb-4">
+        <div class="card h-100">
+            <div class="card-header" style="background: var(--d1000-green); color: white;">
+                <i class="fas fa-file-csv me-2"></i>Via CSV
+            </div>
+            <div class="card-body">
+                <form method="POST" enctype="multipart/form-data">
+                    <input type="hidden" name="import_type" value="csv">
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Arquivo CSV *</label>
+                        <input type="file" class="form-control" name="csv_file" accept=".csv" required>
+                    </div>
+                    
+                    <div class="alert alert-warning small">
+                        <strong>Colunas esperadas:</strong>
+                        <ul class="mb-0 mt-2 small">
+                            <li>Nome ou Name</li>
+                            <li>Email (opcional)</li>
+                            <li>Telefone (opcional)</li>
+                        </ul>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-success w-100">
+                        <i class="fas fa-upload me-2"></i>Importar CSV
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <i class="fas fa-question-circle me-2"></i>Como Funciona
+    </div>
+    <div class="card-body">
+        <div class="row text-center">
+            <div class="col-md-3 mb-3">
+                <div style="width: 60px; height: 60px; background: var(--d1000-blue); border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; color: white; font-size: 24px; font-weight: bold; margin-bottom: 10px;">1</div>
+                <h6>Escolha o Método</h6>
+                <p class="small text-muted">LinkedIn, PDF ou CSV</p>
+            </div>
+            
+            <div class="col-md-3 mb-3">
+                <div style="width: 60px; height: 60px; background: var(--d1000-green); border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; color: white; font-size: 24px; font-weight: bold; margin-bottom: 10px;">2</div>
+                <h6>Importe</h6>
+                <p class="small text-muted">Upload ou preencha dados</p>
+            </div>
+            
+            <div class="col-md-3 mb-3">
+                <div style="width: 60px; height: 60px; background: var(--d1000-yellow); border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; color: var(--d1000-dark); font-size: 24px; font-weight: bold; margin-bottom: 10px;">3</div>
+                <h6>IA Analisa</h6>
+                <p class="small text-muted">Análise em segundos</p>
+            </div>
+            
+            <div class="col-md-3 mb-3">
+                <div style="width: 60px; height: 60px; background: var(--d1000-orange); border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; color: white; font-size: 24px; font-weight: bold; margin-bottom: 10px;">4</div>
+                <h6>Veja Ranking</h6>
+                <p class="small text-muted">Ordenado por score</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="mt-3">
+    <a href="{{ url_for('view_job', job_id=job.id) }}" class="btn btn-secondary">
+        <i class="fas fa-arrow-left me-2"></i>Voltar
+    </a>
+</div>
+{% endblock %}

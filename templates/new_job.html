@@ -1,0 +1,257 @@
+{% extends "base.html" %}
+
+{% block title %}Nova Vaga - TalentScope AI{% endblock %}
+
+{% block content %}
+<style>
+    :root {
+        --d1000-yellow: #F7B500;
+        --d1000-orange: #E85D2A;
+        --d1000-green: #5CB85C;
+        --d1000-blue: #0275D8;
+        --d1000-dark: #2C3E50;
+    }
+    
+    .page-header {
+        background: linear-gradient(135deg, var(--d1000-blue) 0%, var(--d1000-dark) 100%);
+        color: white;
+        padding: 2rem;
+        border-radius: 15px;
+        margin-bottom: 2rem;
+        box-shadow: 0 10px 30px rgba(2, 117, 216, 0.3);
+    }
+    
+    .page-header h1 {
+        font-size: 2rem;
+        font-weight: 700;
+        margin-bottom: 0;
+    }
+    
+    .card {
+        border: none;
+        border-radius: 15px;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+        overflow: hidden;
+    }
+    
+    .card-header {
+        background: linear-gradient(135deg, var(--d1000-blue) 0%, var(--d1000-dark) 100%);
+        border: none;
+        padding: 1.25rem 1.5rem;
+    }
+    
+    .card-header h5 {
+        font-weight: 600;
+        letter-spacing: 0.5px;
+        color: white;
+        margin-bottom: 0;
+    }
+    
+    .form-label {
+        font-weight: 600;
+        color: var(--d1000-dark);
+        margin-bottom: 0.5rem;
+        font-size: 0.95rem;
+    }
+    
+    .form-control {
+        border: 2px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 0.75rem 1rem;
+        transition: all 0.3s ease;
+        font-size: 0.95rem;
+    }
+    
+    .form-control:focus {
+        border-color: var(--d1000-blue);
+        box-shadow: 0 0 0 3px rgba(2, 117, 216, 0.1);
+    }
+    
+    textarea.form-control {
+        resize: vertical;
+        min-height: 120px;
+    }
+    
+    .input-icon {
+        position: relative;
+    }
+    
+    .input-icon i {
+        position: absolute;
+        left: 1rem;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--d1000-blue);
+        font-size: 1.1rem;
+    }
+    
+    .input-icon .form-control {
+        padding-left: 3rem;
+    }
+    
+    .btn-primary {
+        background: linear-gradient(135deg, var(--d1000-blue) 0%, var(--d1000-dark) 100%);
+        border: none;
+        padding: 0.75rem 2rem;
+        border-radius: 10px;
+        font-weight: 600;
+        box-shadow: 0 5px 15px rgba(2, 117, 216, 0.3);
+        transition: all 0.3s ease;
+    }
+    
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(2, 117, 216, 0.4);
+        background: linear-gradient(135deg, var(--d1000-dark) 0%, var(--d1000-blue) 100%);
+    }
+    
+    .btn-secondary {
+        background: #718096;
+        border: none;
+        padding: 0.75rem 2rem;
+        border-radius: 10px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-secondary:hover {
+        background: #4a5568;
+        transform: translateY(-2px);
+    }
+    
+    .btn-outline-secondary {
+        border: 2px solid white;
+        color: white;
+        border-radius: 10px;
+        padding: 0.5rem 1.5rem;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-outline-secondary:hover {
+        background: white;
+        color: var(--d1000-blue);
+    }
+    
+    .info-card {
+        background: linear-gradient(135deg, var(--d1000-orange) 0%, var(--d1000-yellow) 100%);
+        color: white;
+        border-radius: 15px;
+        padding: 1.5rem;
+        box-shadow: 0 5px 20px rgba(232, 93, 42, 0.3);
+        position: sticky;
+        top: 20px;
+    }
+    
+    .info-card h5 {
+        font-weight: 700;
+        margin-bottom: 1rem;
+    }
+    
+    .info-card ul {
+        padding-left: 1.2rem;
+        margin-bottom: 0;
+    }
+    
+    .info-card li {
+        margin-bottom: 0.75rem;
+        line-height: 1.6;
+    }
+    
+    .form-hint {
+        font-size: 0.85rem;
+        color: #718096;
+        margin-top: 0.25rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .form-hint i {
+        color: var(--d1000-blue);
+    }
+</style>
+
+<div class="page-header">
+    <div class="d-flex justify-content-between align-items-center">
+        <h1><i class="fas fa-plus-circle me-3"></i>Nova Vaga</h1>
+        <a href="{{ url_for('jobs') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-2"></i>Voltar
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-briefcase me-2"></i>Informações da Vaga</h5>
+            </div>
+            <div class="card-body p-4">
+                <form method="POST">
+                    <div class="mb-4">
+                        <label for="title" class="form-label">
+                            Título da Vaga <span class="text-danger">*</span>
+                        </label>
+                        <div class="input-icon">
+                            <i class="fas fa-tag"></i>
+                            <input type="text" class="form-control" id="title" name="title" required 
+                                   placeholder="Ex: Desenvolvedor Full Stack Sênior">
+                        </div>
+                        <div class="form-hint">
+                            <i class="fas fa-info-circle"></i>
+                            <span>Seja claro e específico sobre a posição</span>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label for="description" class="form-label">
+                            Descrição da Vaga <span class="text-danger">*</span>
+                        </label>
+                        <textarea class="form-control" id="description" name="description" rows="5" required
+                                  placeholder="Descreva a vaga, responsabilidades, dia a dia, projetos..."></textarea>
+                        <div class="form-hint">
+                            <i class="fas fa-info-circle"></i>
+                            <span>Inclua informações sobre a rotina, projetos e contexto do time</span>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label for="requirements" class="form-label">
+                            Requisitos <span class="text-danger">*</span>
+                        </label>
+                        <textarea class="form-control" id="requirements" name="requirements" rows="5" required
+                                  placeholder="Liste os requisitos técnicos, experiências necessárias e habilidades comportamentais..."></textarea>
+                        <div class="form-hint">
+                            <i class="fas fa-info-circle"></i>
+                            <span>Separe requisitos obrigatórios dos desejáveis</span>
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex gap-3 mt-4">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-2"></i>Criar Vaga
+                        </button>
+                        <a href="{{ url_for('jobs') }}" class="btn btn-secondary">
+                            <i class="fas fa-times me-2"></i>Cancelar
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="info-card">
+            <h5><i class="fas fa-lightbulb me-2"></i>Dicas para uma boa vaga</h5>
+            <ul>
+                <li><strong>Título objetivo:</strong> Use termos conhecidos no mercado (ex: "Sênior", "Pleno")</li>
+                <li><strong>Descrição completa:</strong> Explique o dia a dia e os desafios da posição</li>
+                <li><strong>Requisitos claros:</strong> Diferencie o que é obrigatório do que é desejável</li>
+                <li><strong>Stack tecnológica:</strong> Liste as tecnologias principais que serão usadas</li>
+                <li><strong>Cultura:</strong> Mencione aspectos importantes da cultura da empresa</li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}

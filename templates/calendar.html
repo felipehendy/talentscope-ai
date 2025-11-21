@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block title %}Calendário - TalentScope AI{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1><i class="fas fa-calendar-alt me-3"></i>Calendário de Entrevistas</h1>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <div id="calendar"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const calendarEl = document.getElementById('calendar');
+    const events = {{ events|tojson }};
+    
+    const calendar = new FullCalendar.Calendar(calendarEl, {
+        initialView: window.innerWidth < 768 ? 'listWeek' : 'dayGridMonth',
+        headerToolbar: {
+            left: 'prev,next today',
+            center: 'title',
+            right: window.innerWidth < 768 ? 'listWeek' : 'dayGridMonth,timeGridWeek,listWeek'
+        },
+        locale: 'pt-br',
+        buttonText: {
+            today: 'Hoje',
+            month: 'Mês',
+            week: 'Semana',
+            list: 'Lista'
+        },
+        events: events,
+        eventClick: function(info) {
+            alert('Entrevista: ' + info.event.title);
+        },
+        height: 'auto'
+    });
+    
+    calendar.render();
+});
+</script>
+{% endblock %}

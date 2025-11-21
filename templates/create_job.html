@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+
+{% block title %}Criar Vaga - TalentScope AI{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1><i class="fas fa-plus-circle me-3"></i>Criar Nova Vaga</h1>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-briefcase me-2"></i>Informações da Vaga
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">Cargo/Título *</label>
+                        <input type="text" class="form-control" name="title" required placeholder="Ex: Analista de Dados Pleno">
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">Nível *</label>
+                        <select class="form-select" name="level" required>
+                            <option value="">Selecione...</option>
+                            <option value="Estagiário">Estagiário</option>
+                            <option value="Junior">Junior</option>
+                            <option value="Pleno">Pleno</option>
+                            <option value="Sênior">Sênior</option>
+                            <option value="Coordenador">Coordenador</option>
+                            <option value="Gerente">Gerente</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">Descrição</label>
+                        <textarea class="form-control" name="description" rows="5" placeholder="Descreva as responsabilidades..."></textarea>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">Skills Requeridas</label>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" name="skill_Python" id="skill_Python">
+                                    <label class="form-check-label" for="skill_Python">Python</label>
+                                </div>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" name="skill_SQL" id="skill_SQL">
+                                    <label class="form-check-label" for="skill_SQL">SQL</label>
+                                </div>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" name="skill_PowerBI" id="skill_PowerBI">
+                                    <label class="form-check-label" for="skill_PowerBI">Power BI</label>
+                                </div>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" name="skill_Excel" id="skill_Excel">
+                                    <label class="form-check-label" for="skill_Excel">Excel</label>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-4">
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" name="skill_JavaScript" id="skill_JavaScript">
+                                    <label class="form-check-label" for="skill_JavaScript">JavaScript</label>
+                                </div>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" name="skill_React" id="skill_React">
+                                    <label class="form-check-label" for="skill_React">React</label>
+                                </div>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" name="skill_NodeJS" id="skill_NodeJS">
+                                    <label class="form-check-label" for="skill_NodeJS">Node.js</label>
+                                </div>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" name="skill_Java" id="skill_Java">
+                                    <label class="form-check-label" for="skill_Java">Java</label>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-4">
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" name="skill_Scrum" id="skill_Scrum">
+                                    <label class="form-check-label" for="skill_Scrum">Scrum</label>
+                                </div>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" name="skill_AWS" id="skill_AWS">
+                                    <label class="form-check-label" for="skill_AWS">AWS</label>
+                                </div>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" name="skill_Docker" id="skill_Docker">
+                                    <label class="form-check-label" for="skill_Docker">Docker</label>
+                                </div>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" name="skill_Git" id="skill_Git">
+                                    <label class="form-check-label" for="skill_Git">Git</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">Skills Adicionais</label>
+                        <input type="text" class="form-control" name="custom_skills" placeholder="Ex: Machine Learning, Tableau">
+                        <small class="text-muted">Separe por vírgula</small>
+                    </div>
+                    
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-2"></i>Criar Vaga
+                        </button>
+                        <a href="{{ url_for('index') }}" class="btn btn-secondary">
+                            <i class="fas fa-times me-2"></i>Cancelar
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header" style="background: var(--d1000-green); color: white;">
+                <i class="fas fa-lightbulb me-2"></i>Dicas
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <i class="fas fa-check-circle text-success me-2"></i>
+                    <strong>Seja claro no título</strong>
+                    <p class="small text-muted mb-0">Use títulos objetivos</p>
+                </div>
+                
+                <div class="mb-3">
+                    <i class="fas fa-check-circle text-success me-2"></i>
+                    <strong>Descreva responsabilidades</strong>
+                    <p class="small text-muted mb-0">Liste as principais atividades</p>
+                </div>
+                
+                <div class="mb-3">
+                    <i class="fas fa-check-circle text-success me-2"></i>
+                    <strong>Liste skills essenciais</strong>
+                    <p class="small text-muted mb-0">Marque apenas as necessárias</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

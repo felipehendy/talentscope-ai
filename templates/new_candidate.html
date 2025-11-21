@@ -1,0 +1,276 @@
+{% extends "base.html" %}
+
+{% block title %}Novo Candidato - TalentScope AI{% endblock %}
+
+{% block content %}
+<style>
+    :root {
+        --d1000-yellow: #F7B500;
+        --d1000-orange: #E85D2A;
+        --d1000-green: #5CB85C;
+        --d1000-blue: #0275D8;
+        --d1000-dark: #2C3E50;
+    }
+    
+    .page-header {
+        background: linear-gradient(135deg, var(--d1000-blue) 0%, var(--d1000-dark) 100%);
+        color: white;
+        padding: 2rem;
+        border-radius: 15px;
+        margin-bottom: 2rem;
+        box-shadow: 0 10px 30px rgba(2, 117, 216, 0.3);
+    }
+    
+    .page-header h1 {
+        font-size: 2rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+    }
+    
+    .card {
+        border: none;
+        border-radius: 15px;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+        overflow: hidden;
+    }
+    
+    .card-header {
+        background: linear-gradient(135deg, var(--d1000-blue) 0%, var(--d1000-dark) 100%);
+        border: none;
+        padding: 1.25rem 1.5rem;
+    }
+    
+    .card-header h5 {
+        font-weight: 600;
+        letter-spacing: 0.5px;
+    }
+    
+    .form-label {
+        font-weight: 600;
+        color: #2d3748;
+        margin-bottom: 0.5rem;
+        font-size: 0.9rem;
+    }
+    
+    .input-group-text {
+        background: linear-gradient(135deg, var(--d1000-blue) 0%, var(--d1000-dark) 100%);
+        border: none;
+        color: white;
+        min-width: 45px;
+        display: flex;
+        justify-content: center;
+    }
+    
+    .form-control {
+        border: 2px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 0.65rem 1rem;
+        transition: all 0.3s ease;
+    }
+    
+    .input-group .form-control {
+        border-left: none;
+        border-top-left-radius: 0;
+        border-bottom-left-radius: 0;
+    }
+    
+    .input-group-text {
+        border-top-right-radius: 0;
+        border-bottom-right-radius: 0;
+    }
+    
+    .form-control:focus {
+        border-color: var(--d1000-blue);
+        box-shadow: 0 0 0 3px rgba(2, 117, 216, 0.1);
+    }
+    
+    .alert-info {
+        background: linear-gradient(135deg, var(--d1000-blue) 0%, var(--d1000-dark) 100%);
+        border: none;
+        border-radius: 12px;
+        color: white;
+        padding: 1.25rem;
+        box-shadow: 0 5px 15px rgba(2, 117, 216, 0.3);
+    }
+    
+    .alert-info strong {
+        font-weight: 700;
+    }
+    
+    .btn-success {
+        background: linear-gradient(135deg, var(--d1000-green) 0%, #4CAF50 100%);
+        border: none;
+        padding: 0.75rem 2rem;
+        border-radius: 10px;
+        font-weight: 600;
+        box-shadow: 0 5px 15px rgba(92, 184, 92, 0.3);
+        transition: all 0.3s ease;
+    }
+    
+    .btn-success:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(92, 184, 92, 0.4);
+        background: linear-gradient(135deg, #4CAF50 0%, var(--d1000-green) 100%);
+    }
+    
+    .btn-secondary {
+        background: var(--d1000-dark);
+        border: none;
+        padding: 0.75rem 2rem;
+        border-radius: 10px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-secondary:hover {
+        background: #34495e;
+        transform: translateY(-2px);
+    }
+    
+    .btn-outline-secondary {
+        border: 2px solid white;
+        color: white;
+        border-radius: 10px;
+        padding: 0.5rem 1.5rem;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-outline-secondary:hover {
+        background: white;
+        color: var(--d1000-blue);
+    }
+    
+    small.text-muted {
+        color: #718096 !important;
+        font-size: 0.85rem;
+    }
+    
+    .info-card {
+        background: linear-gradient(135deg, var(--d1000-orange) 0%, var(--d1000-yellow) 100%);
+        color: white;
+        border-radius: 15px;
+        padding: 1.5rem;
+        box-shadow: 0 5px 20px rgba(232, 93, 42, 0.3);
+        position: sticky;
+        top: 20px;
+    }
+    
+    .info-card h5 {
+        font-weight: 700;
+        margin-bottom: 1rem;
+    }
+    
+    .info-card ul {
+        padding-left: 1.2rem;
+        margin-bottom: 0;
+    }
+    
+    .info-card li {
+        margin-bottom: 0.75rem;
+        line-height: 1.6;
+    }
+</style>
+
+<div class="page-header">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h1><i class="fas fa-user-plus me-3"></i>Adicionar Candidato</h1>
+            <p class="mb-0 opacity-90">
+                <i class="fas fa-briefcase me-2"></i>Vaga: <strong>{{ job.title }}</strong>
+            </p>
+        </div>
+        <a href="{{ url_for('job_detail', job_id=job.id) }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-2"></i>Voltar
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header text-white">
+                <h5 class="mb-0"><i class="fas fa-user-edit me-2"></i>Dados do Candidato</h5>
+            </div>
+            <div class="card-body p-4">
+                <form method="POST" enctype="multipart/form-data">
+                    <div class="row">
+                        <div class="col-md-6 mb-4">
+                            <label for="name" class="form-label">
+                                Nome Completo <span class="text-danger">*</span>
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-user"></i></span>
+                                <input type="text" class="form-control" id="name" name="name" 
+                                       required placeholder="Ex: João Silva">
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6 mb-4">
+                            <label for="email" class="form-label">
+                                Email <span class="text-danger">*</span>
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-envelope"></i></span>
+                                <input type="email" class="form-control" id="email" name="email" 
+                                       required placeholder="joao@email.com">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-4">
+                            <label for="phone" class="form-label">
+                                Telefone (WhatsApp) <span class="text-danger">*</span>
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fab fa-whatsapp"></i></span>
+                                <input type="text" class="form-control" id="phone" name="phone" 
+                                       required placeholder="11999999999">
+                            </div>
+                            <small class="text-muted">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Formato: DDD + Número (sem espaços)
+                            </small>
+                        </div>
+                        
+                        <div class="col-md-6 mb-4">
+                            <label for="resume" class="form-label">
+                                Currículo (PDF) <span class="text-danger">*</span>
+                            </label>
+                            <input type="file" class="form-control" id="resume" name="resume" 
+                                   accept=".pdf" required>
+                            <small class="text-muted">
+                                <i class="fas fa-file-pdf me-1"></i>
+                                Máximo 16MB
+                            </small>
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-end mt-4">
+                        <a href="{{ url_for('job_detail', job_id=job.id) }}" class="btn btn-secondary me-3">
+                            <i class="fas fa-times me-2"></i>Cancelar
+                        </a>
+                        <button type="submit" class="btn btn-success">
+                            <i class="fas fa-paper-plane me-2"></i>Enviar Candidato
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="info-card">
+            <h5><i class="fas fa-lightbulb me-2"></i>Dicas para o Cadastro</h5>
+            <ul>
+                <li><strong>Atenção:</strong> Preencha todos os campos marcados com <span class="text-danger">*</span>.</li>
+                <li><strong>Currículo:</strong> Envie um arquivo em formato PDF com no máximo 16MB.</li>
+                <li><strong>Contato:</strong> Use um número de WhatsApp válido para facilitar a comunicação.</li>
+                <li><strong>Revisão:</strong> Verifique os dados antes de enviar para garantir que estão corretos.</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
