@@ -501,17 +501,17 @@ def reanalyze_all_candidates_for_job(job_id):
         
         for candidate in candidates:
             try:
-                # Reanalisar o candidato
-                analysis_result = analyze_candidate_with_ai(candidate, job)
+                # ✅ CORRIGIDO: Parâmetros corretos
+                analysis_result = analyze_candidate_with_ai(
+                    candidate.resume_text, 
+                    job.description, 
+                    job.requirements
+                )
                 
-                if analysis_result and analysis_result.get('success'):
-                    # Atualizar a análise do candidato
-                    candidate.analysis = analysis_result.get('analysis', '')
-                    candidate.score = analysis_result.get('score', 0)
-                    candidate.strengths = analysis_result.get('strengths', '')
-                    candidate.weaknesses = analysis_result.get('weaknesses', '')
-                    candidate.recommendation = analysis_result.get('recommendation', '')
-                    candidate.last_analyzed = datetime.utcnow()
+                # ✅ CORRIGIDO: Usar campos reais do modelo
+                if analysis_result and 'score' in analysis_result:
+                    candidate.ai_score = analysis_result.get('score', 0)
+                    candidate.ai_analysis = json.dumps(analysis_result)
                     
                     reanalyzed_count += 1
                     
