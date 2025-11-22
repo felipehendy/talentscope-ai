@@ -3,6 +3,8 @@ import io
 import re
 import pdfplumber
 import PyPDF2
+import time
+from datetime import datetime
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_file
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
@@ -476,6 +478,62 @@ def process_bulk_pdf_analysis(job_id):
             db.session.rollback()
 
 # ==================== ROTAS DE AUTENTICAÇÃO ====================
+
+@app.route('/jobs/<int:job_id>/reanalyze_all', methods=['POST'])
+@login_required
+def reanalyze_all_candidates_for_job(job_id):
+    """Reanalisa todos os candidatos para uma vaga específica"""
+    try:
+        job = Job.query.get_or_404(job_id)
+        
+        # Verificar se o usuário tem permissão para esta vaga
+        if job.user_id != current_user.id:
+            flash('Acesso negado.', 'error')
+            return redirect(url_for('jobs'))
+        
+        candidates = Candidate.query.filter_by(job_id=job_id).all()
+        
+        if not candidates:
+            flash('Nenhum candidato encontrado para reanálise.', 'warning')
+            return redirect(url_for('job_detail', job_id=job_id))
+        
+        reanalyzed_count = 0
+        
+        for candidate in candidates:
+            try:
+                # Reanalisar o candidato
+                analysis_result = analyze_candidate_with_ai(candidate, job)
+                
+                if analysis_result and analysis_result.get('success'):
+                    # Atualizar a análise do candidato
+                    candidate.analysis = analysis_result.get('analysis', '')
+                    candidate.score = analysis_result.get('score', 0)
+                    candidate.strengths = analysis_result.get('strengths', '')
+                    candidate.weaknesses = analysis_result.get('weaknesses', '')
+                    candidate.recommendation = analysis_result.get('recommendation', '')
+                    candidate.last_analyzed = datetime.utcnow()
+                    
+                    reanalyzed_count += 1
+                    
+                    # Pequena pausa para evitar rate limiting
+                    time.sleep(1)
+                    
+            except Exception as e:
+                print(f"Erro ao reanalisar candidato {candidate.id}: {str(e)}")
+                continue
+        
+        db.session.commit()
+        
+        if reanalyzed_count > 0:
+            flash(f'Reanálise concluída! {reanalyzed_count} candidatos foram reanalisados.', 'success')
+        else:
+            flash('Nenhum candidato pôde ser reanalisado.', 'warning')
+            
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Erro durante a reanálise: {str(e)}', 'error')
+    
+    return redirect(url_for('job_detail', job_id=job_id))
 
 @app.route('/')
 def index():
