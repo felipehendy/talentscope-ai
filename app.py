@@ -19,10 +19,15 @@ from ai_analyzer import AIAnalyzer
 import json
 from sqlalchemy import text, create_engine
 from sqlalchemy.exc import SQLAlchemyError
+from flask_wtf.csrf import CSRFProtect
 
 # --- Configuração ---
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'sua-chave-secreta-super-segura-123')
+
+# ✅ ADICIONE CSRF PROTECTION
+csrf = CSRFProtect()
+csrf.init_app(app)
 
 # ✅ CONFIGURAÇÃO CORRETA DO BANCO PARA RENDER
 def get_database_url():
@@ -504,6 +509,43 @@ def process_bulk_pdf_analysis(job_id):
             db.session.rollback()
 
 # ==================== ROTAS DE AUTENTICAÇÃO ====================
+
+# ✅ ROTA TEMPORÁRIA - CRIAR USUÁRIO MANUALMENTE
+@app.route('/fix-register')
+def fix_register():
+    """Solução temporária para criar usuário"""
+    try:
+        # Verifica se já existe admin
+        admin = User.query.filter_by(email='admin@talentscope.com').first()
+        
+        if not admin:
+            user = User(
+                username='admin',
+                email='admin@talentscope.com',
+                password_hash=generate_password_hash('admin123'),
+                is_admin=True
+            )
+            db.session.add(user)
+            db.session.commit()
+            return '''
+            <h1>✅ USUÁRIO CRIADO COM SUCESSO!</h1>
+            <p><strong>Email:</strong> admin@talentscope.com</p>
+            <p><strong>Senha:</strong> admin123</p>
+            <p><a href="/login" style="display: inline-block; padding: 10px 20px; background: #007bff; color: white; text-decoration: none; border-radius: 5px;">👉 CLIQUE AQUI PARA LOGIN</a></p>
+            '''
+        else:
+            return f'''
+            <h1>⚠️ Usuário já existe</h1>
+            <p>O usuário admin já está cadastrado.</p>
+            <p><a href="/login" style="color: blue;">Ir para Login</a></p>
+            '''
+            
+    except Exception as e:
+        return f'''
+        <h1>❌ Erro ao criar usuário</h1>
+        <p><strong>Erro:</strong> {str(e)}</p>
+        <p><a href="/debug">Ver status do sistema</a></p>
+        '''
 
 # ✅ ROTA TEMPORÁRIA PARA CRIAR ADMIN RÁPIDO
 @app.route('/create-admin-now')
