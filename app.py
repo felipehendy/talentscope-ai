@@ -4,6 +4,7 @@ import re
 import pdfplumber
 import PyPDF2
 import time
+from sqlalchemy import inspect, text
 from datetime import datetime
 from flask import session
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_file
@@ -52,53 +53,40 @@ print(f"🔧 Provider configurado: {ai_analyzer.get_current_provider()}")
 def run_auto_migration(app):
     """
     Executa a migração para adicionar a coluna linkedin_url na inicialização.
-    Esta é uma solução de emergência para ambientes sem acesso fácil ao shell de migração.
+    Versão compatível com SQLite.
     """
     with app.app_context():
-        engine = create_engine(app.config['SQLALCHEMY_DATABASE_URI'])
-        
-        TABLE_NAME = "candidate"
-        COLUMN_NAME = "linkedin_url"
-        COLUMN_TYPE = "VARCHAR(500)" # Usando 500 para ser consistente com o modelo
-
-        # Comando SQL para adicionar a coluna, se ela ainda não existir
-        MIGRATION_SQL = text(f"""
-            ALTER TABLE {TABLE_NAME}
-            ADD COLUMN {COLUMN_NAME} {COLUMN_TYPE}
-            DEFAULT NULL;
-        """)
-
-        # Comando SQL para verificar se a coluna já existe
-        CHECK_SQL = text(f"""
-            SELECT 1
-            FROM information_schema.columns
-            WHERE table_name = '{TABLE_NAME}'
-            AND column_name = '{COLUMN_NAME}';
-        """)
-
         try:
+            # Para SQLite, verifica de forma diferente
+            engine = create_engine(app.config['SQLALCHEMY_DATABASE_URI'])
+            
+            # Verifica se a tabela candidate existe
+            inspector = inspect(engine)
+            if 'candidate' not in inspector.get_table_names():
+                print("📋 Tabela candidate não existe ainda. Será criada com db.create_all()")
+                return
+            
+            # Verifica se a coluna já existe (método compatível com SQLite)
+            columns = [col['name'] for col in inspector.get_columns('candidate')]
+            
+            if 'linkedin_url' in columns:
+                print(f"✅ Migração: Coluna 'linkedin_url' já existe. Nenhuma ação necessária.")
+                return
+
+            # Adiciona a coluna se não existir
+            print("🔄 Adicionando coluna 'linkedin_url' à tabela candidate...")
             with engine.connect() as connection:
-                # 1. Verifica se a coluna já existe
-                result = connection.execute(CHECK_SQL).fetchone()
-                
-                if result:
-                    print(f"✅ Migração: Coluna '{COLUMN_NAME}' já existe. Nenhuma ação necessária.")
-                    return
-
-                # 2. Executa o comando ALTER TABLE
-                connection.execute(MIGRATION_SQL)
-                
-                # 3. Confirma a transação
+                connection.execute(text("""
+                    ALTER TABLE candidate 
+                    ADD COLUMN linkedin_url VARCHAR(500) DEFAULT NULL
+                """))
                 connection.commit()
-                print(f"🎉 Migração: Coluna '{COLUMN_NAME}' adicionada com sucesso!")
+                
+            print("🎉 Migração: Coluna 'linkedin_url' adicionada com sucesso!")
 
-        except SQLAlchemyError as e:
-            print(f"❌ ERRO FATAL na Migração Automática: {e}")
-            print("A aplicação pode falhar se a coluna for necessária. Verifique a conexão com o DB.")
         except Exception as e:
-            print(f"❌ Ocorreu um erro inesperado na Migração: {e}")
-
-# ==================== FIM FUNÇÃO DE MIGRAÇÃO AUTOMÁTICA ====================
+            print(f"⚠️ Aviso na migração: {e}")
+            print("A coluna será criada quando as tabelas forem geradas.")
 
 
 # ==================== FILTRO WHATSAPP ====================
@@ -1164,6 +1152,47 @@ def new_interview():
 # ⚠️ Executa a migração antes de iniciar o servidor
 # Isso garante que a coluna 'linkedin_url' exista antes que o Gunicorn/Flask tente usá-la.
 run_auto_migration(app)
+
+def initialize_database():
+    """Cria todas as tabelas se não existirem"""
+    with app.app_context():
+        try:
+            # Verifica se a tabela user existe
+            from sqlalchemy import inspect
+            inspector = inspect(db.engine)
+            existing_tables = inspector.get_table_names()
+            
+            if not existing_tables:
+                print("🗃️ Criando todas as tabelas do banco de dados...")
+                db.create_all()
+                print("✅ Tabelas criadas com sucesso!")
+            else:
+                print("✅ Tabelas já existem no banco de dados")
+                
+        except Exception as e:
+            print(f"❌ Erro ao verificar/criar tabelas: {e}")
+            # Tenta criar as tabelas mesmo assim
+            try:
+                db.create_all()
+                print("✅ Tabelas criadas com sucesso!")
+            except Exception as e2:
+                print(f"❌ Erro crítico ao criar tabelas: {e2}")
+
+# ==================== INICIALIZAÇÃO ====================
+
+# ⚠️ Executa a migração antes de iniciar o servidor
+run_auto_migration(app)
+
+# ✅ INICIALIZA O BANCO DE DADOS
+initialize_database()
+
+if __name__ == "__main__":
+    # Cria as tabelas se estiver usando SQLite localmente e não houver migrações
+    if 'sqlite' in app.config['SQLALCHEMY_DATABASE_URI'] and not os.path.exists('migrations'):
+        with app.app_context():
+            db.create_all()
+            
+    app.run(debug=True)
 
 if __name__ == "__main__":
     # Cria as tabelas se estiver usando SQLite localmente e não houver migrações

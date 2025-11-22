@@ -57,13 +57,7 @@ para Recrutamento</p>
             {% endif %}
         {% endwith %}
 
-        <!-- Aviso de Administrador para Primeiro Usuário -->
-        {% if is_first_user %}
-        <div class="admin-notice">
-            <i class="fas fa-crown"></i> 
-            <strong>Conta de Administrador:</strong> Esta será a primeira conta do sistema com acesso total.
-        </div>
-        {% endif %}
+       
 
         <!-- Formulário de Registro -->
         <form method="POST" action="{{ url_for('register') }}">
