@@ -5,6 +5,7 @@ import pdfplumber
 import PyPDF2
 import time
 from datetime import datetime
+from flask import session
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_file
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
@@ -594,8 +595,17 @@ def reanalyze_all_candidates_for_job(job_id):
 def index():
     if current_user.is_authenticated:
         return redirect(url_for('dashboard'))
-    return redirect(url_for('login'))
-
+    
+    # ✅ Conta quantos usuários existem no sistema
+    user_count = User.query.count()
+    
+    if user_count == 0:
+        # ✅ Primeiro acesso: redireciona para registro
+        return redirect(url_for('register'))
+    else:
+        # ✅ Acessos subsequentes: redireciona para login
+        return redirect(url_for('login'))
+    
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
@@ -616,12 +626,23 @@ def login():
             
     return render_template('login.html')
 
+from flask import session
+
 @app.route('/register', methods=['GET', 'POST'])
 def register():
-    user_count = User.query.count()
+    # ... código anterior igual ...
     
-    if user_count > 0 and not current_user.is_authenticated:
-        flash('Registro desabilitado. Faça login ou contate o administrador.', 'warning')
+    if request.method == 'POST':
+        # ... código de criação do usuário ...
+        
+        # ✅ SALVA O EMAIL NA SESSION PARA PRÉ-PREENCHER O LOGIN
+        session['registered_email'] = email
+        
+        if is_first_user:
+            flash('Conta de administrador criada com sucesso! Faça login para continuar.', 'success')
+        else:
+            flash('Conta criada com sucesso! Faça login para continuar.', 'success')
+        
         return redirect(url_for('login'))
     
     if current_user.is_authenticated and not current_user.is_admin and user_count > 0:
@@ -657,10 +678,11 @@ def register():
         db.session.commit()
         
         if is_first_user:
-            flash('Conta criada com sucesso! Você é o administrador do sistema.', 'success')
+            flash('Conta de administrador criada com sucesso! Faça login para continuar.', 'success')
         else:
-            flash('Conta criada com sucesso!', 'success')
+            flash('Conta criada com sucesso! Faça login para continuar.', 'success')
         
+        # ✅ REDIRECIONA PARA LOGIN APÓS CADASTRO
         return redirect(url_for('login'))
     
     is_first_user = (user_count == 0)

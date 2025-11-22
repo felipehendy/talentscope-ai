@@ -141,6 +141,7 @@
         .form-footer a { color: var(--d1000-blue); text-decoration: none; font-weight: 600; }
         .form-footer a:hover { text-decoration: underline; }
         .alert-danger { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; border-radius: 8px; padding: 1rem; margin-bottom: 1.5rem; font-size: 0.9rem; }
+        .alert-success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; border-radius: 8px; padding: 1rem; margin-bottom: 1.5rem; font-size: 0.9rem; }
         .default-credentials { background: #fff3cd; border: 1px solid #ffeeba; border-radius: 8px; padding: 1rem; margin-top: 1.5rem; font-size: 0.9rem; }
 
         /* Responsividade */
@@ -186,13 +187,17 @@ para Recrutamento</p>
                 <p>Faça o login para acessar seu painel.</p>
             </div>
             
-            <!-- Exibição de Mensagens de Erro (Flash) -->
+            <!-- Exibição de Mensagens Flash -->
             {% with messages = get_flashed_messages(with_categories=true) %}
                 {% if messages %}
                     {% for category, message in messages %}
                         {% if category == 'danger' %}
                             <div class="alert-danger">
                                 <i class="fas fa-exclamation-triangle"></i> {{ message }}
+                            </div>
+                        {% elif category == 'success' %}
+                            <div class="alert-success">
+                                <i class="fas fa-check-circle"></i> {{ message }}
                             </div>
                         {% endif %}
                     {% endfor %}
@@ -202,17 +207,20 @@ para Recrutamento</p>
             <!-- Formulário de Login -->
             <form method="POST" action="{{ url_for('login') }}">
                 <div class="form-group">
-                    <label for="username" class="form-label">Usuário</label>
+                    <label for="email" class="form-label">Email</label>
                     <div class="input-icon">
-                        <input type="text" id="username" name="username" class="form-control" placeholder="Digite seu nome de usuário" required>
-                        <i class="fas fa-user"></i>
+                        <input type="email" id="email" name="email" class="form-control" 
+                               value="{{ prefill_email or '' }}" 
+                               placeholder="Digite seu email" required>
+                        <i class="fas fa-envelope"></i>
                     </div>
                 </div>
 
                 <div class="form-group">
                     <label for="password" class="form-label">Senha</label>
                     <div class="input-icon">
-                        <input type="password" id="password" name="password" class="form-control" placeholder="••••••••" required>
+                        <input type="password" id="password" name="password" class="form-control" 
+                               placeholder="••••••••" required>
                         <i class="fas fa-lock"></i>
                     </div>
                 </div>
@@ -222,18 +230,46 @@ para Recrutamento</p>
                 </button>
             </form>
 
-            <!-- Aviso de Primeiro Acesso -->
-            {% if show_warning %}
+            <!-- Aviso de Primeiro Acesso (apenas se não houver usuários) -->
+            {% if user_count == 0 %}
             <div class="default-credentials">
                 <strong><i class="fas fa-info-circle"></i> Primeiro Acesso:</strong>
-                Usuário: <strong>admin</strong> / Senha: <strong>admin123</strong>
+                <p>Este é o primeiro acesso ao sistema. Você será redirecionado para criar uma conta de administrador.</p>
             </div>
             {% endif %}
 
             <div class="form-footer">
-                <p>Ainda não tem uma conta? <a href="{{ url_for('register') }}">Crie uma agora</a></p>
+                <!-- Mostrar link para registro apenas se não houver usuários -->
+                {% if user_count == 0 %}
+                    <p>Primeiro acesso? <a href="{{ url_for('register') }}">Crie sua conta de administrador</a></p>
+                {% else %}
+                    <p>Não tem uma conta? <a href="{{ url_for('register') }}">Solicitar acesso</a></p>
+                {% endif %}
             </div>
         </div>
     </div>
+
+    <script>
+        // Script para melhorar a experiência do usuário
+        document.addEventListener('DOMContentLoaded', function() {
+            // Focar no campo de email se estiver vazio
+            const emailField = document.getElementById('email');
+            if (!emailField.value) {
+                emailField.focus();
+            }
+            
+            // Adicionar validação em tempo real
+            const form = document.querySelector('form');
+            form.addEventListener('submit', function(e) {
+                const email = document.getElementById('email').value;
+                const password = document.getElementById('password').value;
+                
+                if (!email || !password) {
+                    e.preventDefault();
+                    alert('Por favor, preencha todos os campos.');
+                }
+            });
+        });
+    </script>
 </body>
 </html>
