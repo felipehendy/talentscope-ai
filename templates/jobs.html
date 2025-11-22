@@ -271,27 +271,37 @@
 </div>
 
 {% if jobs %}
-<!-- Estatísticas Rápidas -->
+<!-- Estatísticas Rápidas - VERSÃO SEGURA -->
 <div class="stats-grid">
     <div class="stat-card">
         <div class="stat-number">{{ jobs|length }}</div>
         <div class="stat-label">Total de Vagas</div>
     </div>
     <div class="stat-card">
-        <div class="stat-number">{{ jobs|selectattr('candidates')|map('length')|sum }}</div>
+        <div class="stat-number">
+            {% set total_candidates = 0 %}
+            {% for job in jobs %}
+                {% set total_candidates = total_candidates + (job.candidates|length if job.candidates else 0) %}
+            {% endfor %}
+            {{ total_candidates }}
+        </div>
         <div class="stat-label">Total de Candidatos</div>
     </div>
     <div class="stat-card">
         <div class="stat-number">
-            {% set active_jobs = jobs|selectattr('status', 'equalto', 'active')|list %}
-            {{ active_jobs|length }}
+            {% set active_count = 0 %}
+            {% for job in jobs %}
+                {% if job.status == 'active' %}
+                    {% set active_count = active_count + 1 %}
+                {% endif %}
+            {% endfor %}
+            {{ active_count }}
         </div>
         <div class="stat-label">Vagas Ativas</div>
     </div>
     <div class="stat-card">
         <div class="stat-number">
-            {% set recent_jobs = jobs|selectattr('created_at')|sort(attribute='created_at', reverse=true)|list %}
-            {{ (recent_jobs|first).created_at.strftime('%d/%m') if recent_jobs else 'N/A' }}
+            {{ jobs[0].created_at.strftime('%d/%m') if jobs else 'N/A' }}
         </div>
         <div class="stat-label">Última Vaga</div>
     </div>
@@ -314,7 +324,7 @@
                 <div class="d-flex justify-content-between align-items-center mt-auto">
                     <span class="candidate-badge">
                         <i class="fas fa-users"></i>
-                        {{ job.candidates|length }} candidato{{ 's' if job.candidates|length != 1 else '' }}
+                        {{ job.candidate_count if job.candidate_count is defined else 0 }} candidato{{ 's' if (job.candidate_count if job.candidate_count is defined else 0) != 1 else '' }}
                     </span>
                     <a href="{{ url_for('job_detail', job_id=job.id) }}" class="btn btn-details">
                         Ver Detalhes <i class="fas fa-arrow-right ms-1"></i>

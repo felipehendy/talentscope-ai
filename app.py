@@ -111,7 +111,7 @@ class Candidate(db.Model):
     name = db.Column(db.String(200), nullable=False)
     email = db.Column(db.String(120))
     phone = db.Column(db.String(20))
-    linkedin_url = db.Column(db.String(500), nullable=True)
+    
     resume_path = db.Column(db.String(500))
     job_id = db.Column(db.Integer, db.ForeignKey('job.id'))
     ai_score = db.Column(db.Float)
@@ -1207,8 +1207,34 @@ def dashboard():
 @app.route('/jobs')
 @login_required
 def jobs():
-    all_jobs = Job.query.order_by(Job.created_at.desc()).all()
-    return render_template('jobs.html', jobs=all_jobs)
+    """Listar todas as vagas - Versão ultra segura"""
+    try:
+        print("📋 Acessando listagem de vagas...")
+        
+        # Buscar vagas SEM carregar candidatos automaticamente
+        all_jobs = Job.query.order_by(Job.created_at.desc()).all()
+        
+        print(f"✅ {len(all_jobs)} vagas encontradas")
+        
+        # Contar candidatos manualmente para evitar o erro de linkedin_url
+        for job in all_jobs:
+            try:
+                # Contar sem carregar os objetos completos
+                job.candidate_count = db.session.query(Candidate.id)\
+                    .filter_by(job_id=job.id).count()
+            except Exception as e:
+                print(f"⚠️ Erro ao contar candidatos da vaga {job.id}: {e}")
+                job.candidate_count = 0
+        
+        return render_template('jobs.html', jobs=all_jobs)
+        
+    except Exception as e:
+        print(f"❌ Erro ao listar vagas: {str(e)}")
+        import traceback
+        print(traceback.format_exc())
+        
+        flash('Erro ao carregar vagas. Tente novamente.', 'danger')
+        return render_template('jobs.html', jobs=[])
 
 @app.route('/jobs/new', methods=['GET', 'POST'])
 @login_required
