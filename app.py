@@ -31,6 +31,30 @@ def get_database_url():
     if database_url:
         if database_url.startswith('postgres://'):
             database_url = database_url.replace('postgres://', 'postgresql://', 1)
+        # ✅ CORREÇÃO SSL PARA RENDER
+        if 'postgresql' in database_url and 'sslmode' not in database_url:
+            database_url += "?sslmode=require"
+        return database_url
+    
+    # Fallback para SQLite local
+    return 'sqlite:///database.db'
+
+app.config['SQLALCHEMY_DATABASE_URI'] = get_database_url()
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+    'pool_recycle': 300,
+    'pool_pre_ping': True
+}
+
+
+
+# ✅ CONFIGURAÇÃO CORRETA DO BANCO PARA RENDER
+def get_database_url():
+    """Configuração do PostgreSQL para Render com fallback para SQLite"""
+    database_url = os.getenv('DATABASE_URL')
+    if database_url:
+        if database_url.startswith('postgres://'):
+            database_url = database_url.replace('postgres://', 'postgresql://', 1)
         return database_url
     
     # Fallback para SQLite local
