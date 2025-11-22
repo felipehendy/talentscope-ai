@@ -99,10 +99,10 @@ class User(UserMixin, db.Model):
 class Job(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(200), nullable=False)
-    description = db.Column(db.Text, nullable=True)  # ✅ Permite NULL
-    requirements = db.Column(db.Text, nullable=True)  # ✅ Permite NULL
+    description = db.Column(db.Text, nullable=True)
+    requirements = db.Column(db.Text, nullable=True)
     status = db.Column(db.String(20), default='active')
-    created_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)  # ✅ Permite NULL
+    created_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     candidates = db.relationship('Candidate', backref='job', lazy=True)
 
@@ -111,7 +111,7 @@ class Candidate(db.Model):
     name = db.Column(db.String(200), nullable=False)
     email = db.Column(db.String(120))
     phone = db.Column(db.String(20))
-    
+    linkedin_url = db.Column(db.String(500))  # ✅ ADICIONADO
     resume_path = db.Column(db.String(500))
     job_id = db.Column(db.Integer, db.ForeignKey('job.id'))
     ai_score = db.Column(db.Float)
@@ -124,31 +124,38 @@ class Candidate(db.Model):
 def load_user(user_id):
     return User.query.get(int(user_id))
 
-# ==================== FUNÇÕES AI ====================
-def calculate_location_score(candidate_city, candidate_state, job_city, job_state):
-    """Calcula score de localização"""
-    if not candidate_city or not candidate_state:
-        return 50
-    
-    if candidate_city == job_city and candidate_state == job_state:
-        return 100
-    elif candidate_state == job_state:
-        return 80
-    else:
-        return 60
+# ==================== FUNÇÕES DE EXTRAÇÃO ====================
 
-def calculate_experience_score(candidate_exp, job_requirements):
-    """Calcula score de experiência baseado nos requisitos"""
-    # Lógica simples baseada em anos
-    if "sênior" in job_requirements.lower() and candidate_exp >= 5:
-        return 90
-    elif "pleno" in job_requirements.lower() and candidate_exp >= 3:
-        return 80
-    elif "júnior" in job_requirements.lower():
-        return 70
-    else:
-        return 60
+def extract_linkedin_from_text(text):
+    """Extrai URL do LinkedIn do texto do currículo"""
+    if not text:
+        return None
     
+    try:
+        # Padrões comuns de LinkedIn
+        patterns = [
+            r'(?:https?://)?(?:www\.)?linkedin\.com/in/[\w-]+/?',
+            r'(?:https?://)?(?:br\.)?linkedin\.com/in/[\w-]+/?',
+            r'linkedin\.com/in/[\w-]+/?',
+        ]
+        
+        for pattern in patterns:
+            match = re.search(pattern, text, re.IGNORECASE)
+            if match:
+                url = match.group()
+                # Garantir que tem https://
+                if not url.startswith('http'):
+                    url = 'https://' + url
+                # Remover barra final duplicada
+                url = url.rstrip('/')
+                return url
+        
+        return None
+        
+    except Exception as e:
+        print(f"⚠️ Erro ao extrair LinkedIn: {e}")
+        return None
+
 def extract_text_from_pdf(file_path):
     """Extrai texto de PDF com múltiplos fallbacks"""
     text = ""
@@ -190,676 +197,7 @@ def extract_text_from_pdf(file_path):
                     continue
         return text.strip() if text.strip() else "Não foi possível extrair texto do PDF"
     except Exception as e:
-        return f"Erro na extração: {str(e)}" 
-
-def extract_city_state_from_text(text):
-    """Extrai cidade e estado do texto do currículo - VERSÃO MELHORADA"""
-    if not text:
-        return None, None
-    
-    try:
-        text_upper = text.upper()
-        
-        # Padrões mais específicos para endereços brasileiros
-        patterns = [
-            r'(\w[\w\s]+?),\s*([A-Z]{2})',  # "São Paulo, SP"
-            r'([^,]+?)\s*-\s*([A-Z]{2})',   # "São Paulo - SP" 
-            r'CIDADE:\s*([^\n,]+?)\s*\/\s*([A-Z]{2})',  # "CIDADE: São Paulo/SP"
-            r'LOCALIZAÇÃO:\s*([^\n,]+?)\s*\/\s*([A-Z]{2})',
-            r'ENDEREÇO[^:]*:\s*[^,]+?,\s*[^,]+?,\s*([^,]+?)\s*-\s*([A-Z]{2})',
-        ]
-        
-        for pattern in patterns:
-            match = re.search(pattern, text_upper)
-            if match:
-                city = match.group(1).strip()
-                state = match.group(2).strip().upper()
-                
-                # Validar estados brasileiros
-                brazil_states = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT',
-                               'MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO',
-                               'RR','SC','SP','SE','TO']
-                
-                if state in brazil_states:
-                    # Limpar nome da cidade (remover lixo comum)
-                    city = re.sub(r'\b(RIO|DE|DA|DO|DOS|DAS|E|\d+)\b', '', city, flags=re.IGNORECASE).strip()
-                    city = re.sub(r'\s+', ' ', city)  # Remove espaços múltiplos
-                    return city.title(), state
-        
-        # Fallback: procurar por menções de estados
-        state_pattern = r'\b([A-Z]{2})\b'
-        state_matches = re.findall(state_pattern, text_upper)
-        for state in state_matches:
-            if state in brazil_states:
-                # Tentar encontrar cidade próxima
-                city_pattern = r'([A-Z][A-Z\s]{3,20}?)\s*[,-\/]\s*' + state
-                city_match = re.search(city_pattern, text_upper)
-                if city_match:
-                    city = city_match.group(1).strip()
-                    city = re.sub(r'\s+', ' ', city)
-                    return city.title(), state
-                else:
-                    return "Cidade não identificada", state
-        
-        return "Local não identificada", "NI"
-        
-    except Exception as e:
-        print(f"⚠️ Erro ao extrair localização: {e}")
-        return "Erro na extração", "ER"
-
-def estimate_experience(text):
-    """Estima anos de experiência baseado no texto - VERSÃO MELHORADA"""
-    if not text:
-        return "Não informada"
-    
-    try:
-        text_lower = text.lower()
-        
-        # Padrões para anos de experiência explícitos
-        exp_patterns = [
-            r'(\d+)[\s\-]+anos?[\s\-]+(?:de\s+)?experiência',
-            r'experiência[\s\-]+(?:de\s+)?(\d+)[\s\-]+anos?',
-            r'(\d+)[\s\-]+anos?[\s\-]+(?:na\s+área|em\s+ti|em\s+tecnologia|na\s+profissão)',
-            r'tempo[\s\-]+de[\s\-]+experiência[\s\-]*:[\s\-]*(\d+)',
-        ]
-        
-        for pattern in exp_patterns:
-            match = re.search(pattern, text_lower)
-            if match:
-                years = int(match.group(1))
-                if years <= 2:
-                    return f"{years} ano" + ("s" if years > 1 else "")
-                elif years <= 5:
-                    return f"{years} anos (Pleno)"
-                else:
-                    return f"{years} anos (Sênior)"
-        
-        # Procurar por senioridade
-        seniority_keywords = {
-            'sênior': '8+ anos (Sênior)',
-            'senior': '8+ anos (Sênior)', 
-            'sr.': '8+ anos (Sênior)',
-            'pleno': '3-7 anos (Pleno)',
-            'pleno/': '3-7 anos (Pleno)',
-            'junior': '1-3 anos (Júnior)', 
-            'júnior': '1-3 anos (Júnior)',
-            'jr.': '1-3 anos (Júnior)',
-            'estagiário': '0-1 ano (Estagiário)',
-            'estagiaria': '0-1 ano (Estagiário)',
-            'trainee': '0-1 ano (Trainee)',
-            'assistente': '1-3 anos (Assistente)'
-        }
-        
-        for keyword, exp in seniority_keywords.items():
-            if keyword in text_lower:
-                return exp
-        
-        # Estimativa por anos mencionados (mais conservadora)
-        year_matches = re.findall(r'(19|20)\d{2}', text)
-        if year_matches:
-            unique_years = len(set(year_matches))
-            estimated_years = min(unique_years, 10)  # Máximo 10 anos
-            if estimated_years <= 2:
-                return f"{estimated_years} anos (Júnior)"
-            elif estimated_years <= 5:
-                return f"{estimated_years} anos (Pleno)"
-            else:
-                return f"{estimated_years}+ anos (Sênior)"
-        
-        return "Não informada"
-        
-    except Exception as e:
-        print(f"⚠️ Erro ao estimar experiência: {e}")
-        return "Não informada"
-    
-def extract_education(text):
-    """Extrai informação educacional do texto do currículo"""
-    if not text:
-        return "Formação não informada"
-    
-    try:
-        text_lower = text.lower()
-        
-        # Universidades brasileiras comuns
-        universities = [
-            'usp', 'unicamp', 'ufrj', 'ufmg', 'ufrgs', 'ufpr', 'ufsc', 'unb', 'ufba', 'ufc',
-            'unesp', 'puc', 'puc-rio', 'puc-sp', 'puc-rs', 'puc-mg', 'puc-pr',
-            'fgv', 'mackenzie', 'faap', 'fei', 'fmu', 'unip', 'anhanguera', 'estácio',
-            'uninove', 'cruzeiro do sul', 'unicesumar', 'unifran', 'unimar'
-        ]
-        
-        # Níveis de formação
-        education_levels = {
-            'doutorado': 'Doutorado',
-            'phd': 'Doutorado', 
-            'mestrado': 'Mestrado',
-            'mba': 'MBA',
-            'graduação': 'Graduação',
-            'bacharelado': 'Bacharelado',
-            'licenciatura': 'Licenciatura',
-            'tecnólogo': 'Tecnólogo',
-            'técnico': 'Técnico',
-            'ensino médio': 'Ensino Médio'
-        }
-        
-        # Procurar por universidades
-        found_university = None
-        for uni in universities:
-            if uni in text_lower:
-                found_university = uni.upper()
-                break
-        
-        # Procurar por nível de formação
-        found_level = None
-        for level_key, level_name in education_levels.items():
-            if level_key in text_lower:
-                found_level = level_name
-                break
-        
-        # Montar resultado
-        if found_university and found_level:
-            return f"{found_university} - {found_level}"
-        elif found_university:
-            return f"{found_university} - Graduação"
-        elif found_level:
-            return found_level
-        else:
-            # Procurar por padrões comuns de educação
-            patterns = [
-                r'(ciência da computação|engenharia|administração|direito|medicina|pedagogia)',
-                r'(sistemas de informação|análise de sistemas|gestão|marketing|rh|recursos humanos)'
-            ]
-            
-            for pattern in patterns:
-                match = re.search(pattern, text_lower)
-                if match:
-                    return f"{match.group(1).title()}"
-            
-            return "Formação superior"  # Default
-        
-    except Exception as e:
-        print(f"⚠️ Erro ao extrair educação: {e}")
-        return "Formação não identificada"
-    
-def analyze_candidate_with_ai(resume_text, job_description, job_requirements):
-    """Analisa candidato com IA usando AIAnalyzer"""
-    try:
-        candidate_data = {
-            'name': 'Candidato',
-            'resume_text': resume_text
-        }
-        
-        job_reqs = {
-            'title': 'Vaga',
-            'description': job_description,
-            'requirements': job_requirements,
-            'level': 'Não especificado'
-        }
-        
-        # Usar o AIAnalyzer (automaticamente usa Gemini)
-        analysis = ai_analyzer.analyze_candidate(candidate_data, job_reqs)
-        
-        # Converter resultado do novo formato para o formato antigo (compatibilidade)
-        return {
-            "score": analysis.get('overall_score', 50),
-            "match_percentage": analysis.get('hard_skills_score', 50),
-            "strengths": [analysis.get('strengths', 'Pontos fortes não identificados')],
-            "weaknesses": [analysis.get('weaknesses', 'Pontos fracos não identificados')],
-            "recommendation": analysis.get('recommendation', 'Revisar manualmente'),
-            "summary": analysis.get('professional_summary', 'Resumo não disponível')
-        }
-        
-    except Exception as e:
-        return {
-            "score": 50,
-            "match_percentage": 50,
-            "strengths": ["Erro na análise"],
-            "weaknesses": [f"Detalhes: {str(e)}"],
-            "recommendation": "Revisar manualmente",
-            "summary": f"Erro na análise: {str(e)}"
-        }
-
-# ==================== FUNÇÕES PARA IMPORTACAO EM MASSA ====================
-
-def process_bulk_analysis(job_id):
-    """Processa análise de IA para todos os candidatos pendentes da vaga"""
-    try:
-        job = Job.query.get(job_id)
-        candidates = Candidate.query.filter_by(job_id=job_id, ai_score=None).all()
-        
-        if not candidates:
-            return
-        
-        print(f"🔍 Iniciando análise em massa para {len(candidates)} candidatos...")
-        
-        for candidate in candidates:
-            try:
-                # ❌ PROBLEMA: Candidatos importados em massa NÃO têm currículo PDF
-                # ✅ SOLUÇÃO: Usar dados básicos para análise ou criar um texto simulado
-                resume_text = candidate.resume_text
-                
-                if not resume_text:
-                    # Criar um texto básico com informações disponíveis
-                    resume_text = f"""
-CANDIDATO: {candidate.name}
-EMAIL: {candidate.email}
-TELEFONE: {candidate.phone or 'Não informado'}
-LINKEDIN: {candidate.linkedin_url or 'Não informado'}
-
-INFORMAÇÕES DISPONÍVEIS:
-- Candidato importado via CSV
-- Dados de contato básicos fornecidos
-- Currículo detalhado não disponível para análise
-"""
-                    candidate.resume_text = resume_text
-                
-                # Analisar com IA
-                ai_result = analyze_candidate_with_ai(resume_text, job.description, job.requirements)
-                
-                candidate.ai_score = ai_result['score']
-                candidate.ai_analysis = json.dumps(ai_result)
-                
-                print(f"✅ Analisado: {candidate.name} - Score: {ai_result['score']}")
-                
-                # Commit após cada candidato para não perder progresso
-                db.session.commit()
-                
-            except Exception as e:
-                print(f"❌ Erro ao analisar {candidate.name}: {str(e)}")
-                continue
-        
-        print("🎯 Análise em massa concluída!")
-        
-    except Exception as e:
-        print(f"❌ Erro no processamento em massa: {str(e)}")
-
-# ==================== ROTAS ====================
-
-@app.route('/debug/test-job-creation')
-@login_required
-def debug_test_job():
-    """Rota de teste - REMOVER após debug"""
-    try:
-        # Teste 1: Verificar estrutura da tabela
-        from sqlalchemy import inspect
-        inspector = inspect(db.engine)
-        columns = inspector.get_columns('job')
-        
-        result = {
-            'columns': [{'name': col['name'], 'type': str(col['type']), 'nullable': col['nullable']} for col in columns],
-            'current_user_id': current_user.id,
-            'current_user_name': current_user.username,
-            'job_count': Job.query.count()
-        }
-        
-        # Teste 2: Tentar criar uma vaga de teste
-        try:
-            test_job = Job(
-                title='TESTE - Vaga Debug',
-                description='Teste de criação',
-                requirements='Teste de requisitos',
-                status='active',
-                created_by=current_user.id
-            )
-            db.session.add(test_job)
-            db.session.commit()
-            
-            result['test_creation'] = 'SUCCESS'
-            result['test_job_id'] = test_job.id
-            
-            # Deletar a vaga de teste
-            db.session.delete(test_job)
-            db.session.commit()
-            
-        except Exception as e:
-            db.session.rollback()
-            result['test_creation'] = f'FAILED: {str(e)}'
-        
-        return jsonify(result)
-        
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/candidates/<int:candidate_id>/schedule-interview', methods=['GET', 'POST'])
-@login_required
-def schedule_interview_from_candidate(candidate_id):
-    """Agendar entrevista a partir da página do candidato"""
-    candidate = Candidate.query.get_or_404(candidate_id)
-    
-    if request.method == 'POST':
-        try:
-            interview = Interview(
-                candidate_id=candidate_id,
-                job_id=request.form.get('job_id'),
-                title=request.form.get('title'),
-                description=request.form.get('description'),
-                start_time=datetime.fromisoformat(request.form.get('start_time')),
-                end_time=datetime.fromisoformat(request.form.get('end_time')),
-                meeting_link=request.form.get('meeting_link'),
-                notes=request.form.get('notes'),
-                created_by=current_user.id
-            )
-            
-            db.session.add(interview)
-            db.session.commit()
-            
-            flash('Entrevista agendada com sucesso!', 'success')
-            return redirect(url_for('calendar'))
-            
-        except Exception as e:
-            flash(f'Erro ao agendar entrevista: {str(e)}', 'danger')
-    
-    # Dados para o formulário (GET)
-    jobs = Job.query.all()
-    
-    return render_template('new_interview.html', 
-                         candidate=candidate,
-                         jobs=jobs,
-                         auto_fill_candidate=True)
-
-@app.route('/interviews/<int:interview_id>/send-whatsapp')
-@login_required
-def send_interview_whatsapp(interview_id):
-    """Enviar convite de entrevista via WhatsApp"""
-    interview = Interview.query.get_or_404(interview_id)
-    candidate = interview.candidate
-    
-    if not candidate.phone:
-        flash('Candidato não possui telefone cadastrado!', 'danger')
-        return redirect(url_for('calendar'))
-    
-    # Formatar data e hora
-    start_time = interview.start_time
-    formatted_date = start_time.strftime('%d/%m/%Y')
-    formatted_time = start_time.strftime('%H:%M')
-    
-    # Criar mensagem personalizada
-    message = f"""Olá {candidate.name}! 
-
-🎯 *Convite para Entrevista*
-
-📅 *Data:* {formatted_date}
-⏰ *Horário:* {formatted_time}
-💼 *Vaga:* {interview.job.title}
-
-"""
-    
-    # Adicionar link da reunião se existir
-    if interview.meeting_link:
-        message += f"🔗 *Link da Reunião:* {interview.meeting_link}\n\n"
-    
-    message += f"""Por favor, confirme sua disponibilidade.
-
-Atenciosamente,
-Equipe TalentScope AI"""
-    
-    # Codificar mensagem para URL
-    encoded_message = quote(message)
-    
-    # Marcar como enviado no banco
-    interview.whatsapp_sent = True
-    interview.whatsapp_sent_at = datetime.utcnow()
-    db.session.commit()
-    
-    # 🔥 CORREÇÃO: Usar a função whatsapp_link corretamente
-    base_url = whatsapp_link(candidate.phone)
-    whatsapp_url = f"{base_url}&text={encoded_message}"
-    
-    flash('Convite preparado para envio no WhatsApp!', 'success')
-    return redirect(whatsapp_url)
-
-@app.route('/api/candidates/<int:job_id>')
-@login_required
-def get_candidates_by_job(job_id):
-    """API para buscar candidatos por vaga"""
-    candidates = Candidate.query.filter_by(job_id=job_id).all()
-    
-    candidates_data = []
-    for candidate in candidates:
-        candidates_data.append({
-            'id': candidate.id,
-            'name': candidate.name,
-            'email': candidate.email,
-            'phone': candidate.phone
-        })
-    
-    return jsonify(candidates_data)
-
-
-@app.route('/calendar')
-@login_required
-def calendar():
-    """Página principal do calendário"""
-    return render_template('calendar.html')
-
-@app.route('/api/calendar/events')
-@login_required
-def calendar_events():
-    """API para eventos do calendário"""
-    interviews = Interview.query.filter(
-        Interview.status == 'scheduled'
-    ).all()
-    
-    events = []
-    for interview in interviews:
-        events.append({
-            'id': interview.id,
-            'title': f"{interview.candidate.name} - {interview.job.title}",
-            'start': interview.start_time.isoformat(),
-            'end': interview.end_time.isoformat(),
-            'color': '#007bff',  # Azul padrão
-            'extendedProps': {
-                'candidate_id': interview.candidate_id,
-                'job_id': interview.job_id,
-                'status': interview.status
-            }
-        })
-    
-    return jsonify(events)
-
-@app.route('/interviews')
-@login_required
-def interviews_list():
-    """Lista de entrevistas"""
-    interviews = Interview.query.order_by(Interview.start_time.asc()).all()
-    return render_template('interviews_list.html', interviews=interviews)
-
-@app.route('/interviews/new', methods=['GET', 'POST'])
-@login_required
-def new_interview():
-    """Agendar nova entrevista - Versão segura"""
-    try:
-        if request.method == 'POST':
-            try:
-                # Validação básica dos dados
-                candidate_id = request.form.get('candidate_id')
-                job_id = request.form.get('job_id')
-                title = request.form.get('title')
-                start_time = request.form.get('start_time')
-                end_time = request.form.get('end_time')
-                meeting_link = request.form.get('meeting_link')
-
-                if not all([candidate_id, job_id, title, start_time, end_time]):
-                    flash('Todos os campos obrigatórios devem ser preenchidos!', 'danger')
-                    return redirect(url_for('new_interview'))
-
-                # Criar entrevista
-                interview = Interview(
-                    candidate_id=int(candidate_id),
-                    job_id=int(job_id),
-                    title=title,
-                    description=request.form.get('description', ''),
-                    start_time=datetime.fromisoformat(start_time),
-                    end_time=datetime.fromisoformat(end_time),
-                    meeting_link=meeting_link or '',
-                    notes=request.form.get('notes', ''),
-                    created_by=current_user.id
-                )
-                
-                db.session.add(interview)
-                db.session.commit()
-                
-                flash('Entrevista agendada com sucesso!', 'success')
-                return redirect(url_for('calendar'))
-                
-            except ValueError as e:
-                flash('Erro nos dados do formulário. Verifique as datas e horários.', 'danger')
-                print(f"❌ Erro de validação: {e}")
-            except Exception as e:
-                flash(f'Erro ao agendar entrevista: {str(e)}', 'danger')
-                print(f"❌ Erro ao criar entrevista: {e}")
-        
-        # Dados para o formulário (GET) - com tratamento de erro
-        try:
-            candidates = Candidate.query.all()
-            jobs = Job.query.all()
-        except Exception as e:
-            print(f"❌ Erro ao carregar dados do formulário: {e}")
-            candidates = []
-            jobs = []
-            flash('Erro ao carregar dados. Tente novamente.', 'warning')
-        
-        return render_template('new_interview.html', 
-                             candidates=candidates, 
-                             jobs=jobs)
-                             
-    except Exception as e:
-        print(f"❌ Erro crítico em new_interview: {e}")
-        flash('Erro interno do servidor. Tente novamente.', 'danger')
-        return redirect(url_for('calendar'))
-    
-@app.route('/interviews/<int:interview_id>/delete', methods=['POST'])
-@login_required
-def delete_interview(interview_id):
-    """Cancelar entrevista"""
-    interview = Interview.query.get_or_404(interview_id)
-    interview.status = 'cancelled'
-    db.session.commit()
-    
-    flash('Entrevista cancelada!', 'success')
-    return redirect(url_for('calendar'))
-
-@app.route('/candidate/<int:candidate_id>/reanalyze', methods=['POST'])
-@login_required
-def reanalyze_candidate(candidate_id):
-    candidate = Candidate.query.get_or_404(candidate_id)
-    job = Job.query.get_or_404(candidate.job_id)
-    
-    # Extrair texto do currículo
-    resume_text = candidate.resume_text 
-    
-    if not resume_text:
-        flash('Erro: Não foi possível encontrar o texto do currículo para reanálise.', 'danger')
-        return redirect(url_for('candidate_detail', candidate_id=candidate.id))
-
-    # Preparar os dados para o analisador
-    candidate_data = {
-        'name': candidate.name,
-        'resume_text': resume_text
-    }
-    job_requirements = {
-        'title': job.title,
-        'level': 'Não especificado',
-        'description': job.description,
-        'skills_required': job.requirements
-    }
-
-    # Chamar o analisador de IA
-    new_analysis = ai_analyzer.analyze_candidate(candidate_data, job_requirements)
-
-    # Atualizar o candidato no banco de dados
-    if 'overall_score' in new_analysis:
-        candidate.ai_score = new_analysis['overall_score']
-        candidate.ai_analysis = json.dumps(new_analysis)
-        db.session.commit()
-        flash('Análise de IA concluída e atualizada com sucesso!', 'success')
-    else:
-        candidate.ai_analysis = json.dumps(new_analysis)
-        db.session.commit()
-        flash('Erro ao reanalisar o candidato. Verifique os detalhes na seção de Análise IA.', 'danger')
-
-    return redirect(url_for('candidate_detail', candidate_id=candidate.id))
-
-# ==================== ROTAS PARA IMPORTACAO EM MASSA ====================
-
-@app.route('/jobs/<int:job_id>/bulk-upload', methods=['GET', 'POST'])
-@login_required
-def bulk_upload_candidates(job_id):
-    """Importar e analisar múltiplos candidatos de uma vez via PDFs"""
-    job = Job.query.get_or_404(job_id)
-    
-    if request.method == 'POST':
-        files = request.files.getlist('pdf_files')  # Múltiplos arquivos PDF
-        
-        if not files or all(not file.filename for file in files):
-            flash('Por favor, selecione pelo menos um arquivo PDF.', 'danger')
-            return redirect(url_for('bulk_upload_candidates', job_id=job_id))
-        
-        candidates_added = 0
-        errors = []
-        
-        for file in files:
-            if not file.filename:
-                continue
-                
-            if not file.filename.lower().endswith('.pdf'):
-                errors.append(f"'{file.filename}' não é um PDF válido")
-                continue
-            
-            try:
-                # Salvar o arquivo PDF
-                filename = secure_filename(file.filename)
-                filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-                file.save(filepath)
-                
-                # Extrair texto do PDF
-                resume_text = extract_text_from_pdf(filepath)
-                
-                if not resume_text.strip():
-                    errors.append(f"PDF '{filename}' não contém texto legível")
-                    os.remove(filepath)
-                    continue
-                
-                # Extrair nome e email automaticamente do texto
-                candidate_name = extract_name_from_text(resume_text, filename)
-                candidate_email = extract_email_from_text(resume_text)
-                
-                # Criar candidato
-                candidate = Candidate(
-                    name=candidate_name,
-                    email=candidate_email or f"candidato_{candidates_added + 1}@temp.com",
-                    phone=None,  # Será extraído se encontrado no PDF
-                    linkedin_url=None,
-                    resume_path=filepath,
-                    resume_text=resume_text,
-                    job_id=job_id,
-                    status='pending'
-                )
-                
-                db.session.add(candidate)
-                candidates_added += 1
-                
-                print(f"📄 PDF processado: {filename} → {candidate_name}")
-                
-            except Exception as e:
-                errors.append(f"Erro em '{file.filename}': {str(e)}")
-                continue
-        
-        # Commit para obter IDs dos candidatos
-        if candidates_added > 0:
-            db.session.commit()
-            
-            # 🔥 PROCESSAMENTO EM MASSA DA IA - ANALISA TODOS OS PDFs
-            process_bulk_pdf_analysis(job_id)
-            
-            flash(f'{candidates_added} currículos PDF analisados com sucesso pela IA!', 'success')
-        
-        if errors:
-            flash(f'Alguns erros: {", ".join(errors[:3])}', 'warning')
-        
-        return redirect(url_for('job_detail', job_id=job_id))
-    
-    return render_template('bulk_upload_pdf.html', job=job)
+        return f"Erro na extração: {str(e)}"
 
 def extract_name_from_text(text, filename):
     """Tenta extrair o nome do candidato do texto do currículo"""
@@ -885,28 +223,189 @@ def extract_name_from_text(text, filename):
 
 def extract_email_from_text(text):
     """Extrai email do texto do currículo"""
-    import re
     email_pattern = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
     emails = re.findall(email_pattern, text)
     return emails[0] if emails else None
 
 def extract_phone_from_text(text):
-    """Extrai telefone do texto do currículo - VERSÃO CORRIGIDA"""
-    import re
-    phone_pattern = r'(\+55\s?)?(\(?\d{2}\)?[\s-]?)?\d{4,5}[\s-]?\d{4}'
-    phones = re.findall(phone_pattern, text)
+    """Extrai telefone do texto do currículo"""
+    if not text:
+        return None
     
-    if phones:
-        # 🔥 CORREÇÃO: re.findall retorna lista de tuplas, precisamos extrair a string completa
-        # Procura pelo padrão completo no texto
-        phone_match = re.search(phone_pattern, text)
-        if phone_match:
-            return phone_match.group().strip()
+    phone_pattern = r'(\+55\s?)?(\(?\d{2}\)?[\s-]?)?\d{4,5}[\s-]?\d{4}'
+    phone_match = re.search(phone_pattern, text)
+    
+    if phone_match:
+        return phone_match.group().strip()
     
     return None
 
+def extract_city_state_from_text(text):
+    """Extrai cidade e estado do texto do currículo"""
+    if not text:
+        return None, None
+    
+    try:
+        text_upper = text.upper()
+        
+        patterns = [
+            r'(\w[\w\s]+?),\s*([A-Z]{2})',
+            r'([^,]+?)\s*-\s*([A-Z]{2})',
+            r'CIDADE:\s*([^\n,]+?)\s*\/\s*([A-Z]{2})',
+            r'LOCALIZAÇÃO:\s*([^\n,]+?)\s*\/\s*([A-Z]{2})',
+            r'ENDEREÇO[^:]*:\s*[^,]+?,\s*[^,]+?,\s*([^,]+?)\s*-\s*([A-Z]{2})',
+        ]
+        
+        for pattern in patterns:
+            match = re.search(pattern, text_upper)
+            if match:
+                city = match.group(1).strip()
+                state = match.group(2).strip().upper()
+                
+                brazil_states = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT',
+                               'MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO',
+                               'RR','SC','SP','SE','TO']
+                
+                if state in brazil_states:
+                    city = re.sub(r'\b(RIO|DE|DA|DO|DOS|DAS|E|\d+)\b', '', city, flags=re.IGNORECASE).strip()
+                    city = re.sub(r'\s+', ' ', city)
+                    return city.title(), state
+        
+        return "Local não identificado", "NI"
+        
+    except Exception as e:
+        print(f"⚠️ Erro ao extrair localização: {e}")
+        return "Erro na extração", "ER"
+
+def estimate_experience(text):
+    """Estima anos de experiência baseado no texto"""
+    if not text:
+        return "Não informada"
+    
+    try:
+        text_lower = text.lower()
+        
+        exp_patterns = [
+            r'(\d+)[\s\-]+anos?[\s\-]+(?:de\s+)?experiência',
+            r'experiência[\s\-]+(?:de\s+)?(\d+)[\s\-]+anos?',
+            r'(\d+)[\s\-]+anos?[\s\-]+(?:na\s+área|em\s+ti|em\s+tecnologia|na\s+profissão)',
+        ]
+        
+        for pattern in exp_patterns:
+            match = re.search(pattern, text_lower)
+            if match:
+                years = int(match.group(1))
+                if years <= 2:
+                    return f"{years} ano" + ("s" if years > 1 else "")
+                elif years <= 5:
+                    return f"{years} anos (Pleno)"
+                else:
+                    return f"{years} anos (Sênior)"
+        
+        seniority_keywords = {
+            'sênior': '8+ anos (Sênior)',
+            'senior': '8+ anos (Sênior)', 
+            'pleno': '3-7 anos (Pleno)',
+            'junior': '1-3 anos (Júnior)', 
+            'júnior': '1-3 anos (Júnior)',
+        }
+        
+        for keyword, exp in seniority_keywords.items():
+            if keyword in text_lower:
+                return exp
+        
+        return "Não informada"
+        
+    except Exception as e:
+        print(f"⚠️ Erro ao estimar experiência: {e}")
+        return "Não informada"
+
+def extract_education(text):
+    """Extrai informação educacional do texto do currículo"""
+    if not text:
+        return "Formação não informada"
+    
+    try:
+        text_lower = text.lower()
+        
+        universities = [
+            'usp', 'unicamp', 'ufrj', 'ufmg', 'ufrgs', 'ufpr', 'ufsc', 'unb',
+            'puc', 'fgv', 'mackenzie', 'faap', 'fei'
+        ]
+        
+        education_levels = {
+            'doutorado': 'Doutorado',
+            'mestrado': 'Mestrado',
+            'mba': 'MBA',
+            'graduação': 'Graduação',
+            'bacharelado': 'Bacharelado',
+        }
+        
+        found_university = None
+        for uni in universities:
+            if uni in text_lower:
+                found_university = uni.upper()
+                break
+        
+        found_level = None
+        for level_key, level_name in education_levels.items():
+            if level_key in text_lower:
+                found_level = level_name
+                break
+        
+        if found_university and found_level:
+            return f"{found_university} - {found_level}"
+        elif found_university:
+            return f"{found_university} - Graduação"
+        elif found_level:
+            return found_level
+        else:
+            return "Formação superior"
+        
+    except Exception as e:
+        print(f"⚠️ Erro ao extrair educação: {e}")
+        return "Formação não identificada"
+
+# ==================== FUNÇÕES AI ====================
+
+def analyze_candidate_with_ai(resume_text, job_description, job_requirements):
+    """Analisa candidato com IA usando AIAnalyzer"""
+    try:
+        candidate_data = {
+            'name': 'Candidato',
+            'resume_text': resume_text
+        }
+        
+        job_reqs = {
+            'title': 'Vaga',
+            'description': job_description,
+            'requirements': job_requirements,
+            'level': 'Não especificado'
+        }
+        
+        analysis = ai_analyzer.analyze_candidate(candidate_data, job_reqs)
+        
+        return {
+            "score": analysis.get('overall_score', 50),
+            "match_percentage": analysis.get('hard_skills_score', 50),
+            "strengths": [analysis.get('strengths', 'Pontos fortes não identificados')],
+            "weaknesses": [analysis.get('weaknesses', 'Pontos fracos não identificados')],
+            "recommendation": analysis.get('recommendation', 'Revisar manualmente'),
+            "summary": analysis.get('professional_summary', 'Resumo não disponível')
+        }
+        
+    except Exception as e:
+        return {
+            "score": 50,
+            "match_percentage": 50,
+            "strengths": ["Erro na análise"],
+            "weaknesses": [f"Detalhes: {str(e)}"],
+            "recommendation": "Revisar manualmente",
+            "summary": f"Erro na análise: {str(e)}"
+        }
+
 def process_bulk_pdf_analysis(job_id):
-    """Processa análise de IA para TODOS os candidatos da vaga (com PDFs) - VERSÃO CORRIGIDA"""
+    """Processa análise de IA para TODOS os candidatos da vaga (com PDFs)"""
     try:
         job = Job.query.get(job_id)
         candidates = Candidate.query.filter_by(job_id=job_id).all()
@@ -929,100 +428,38 @@ def process_bulk_pdf_analysis(job_id):
                 candidate.ai_score = ai_result['score']
                 candidate.ai_analysis = json.dumps(ai_result)
                 
-                # 🔥 CORREÇÃO: Verificar se phone é None antes de tentar extrair
+                # Extrair telefone se não tiver
                 if not candidate.phone:
                     phone = extract_phone_from_text(candidate.resume_text)
                     if phone:
                         candidate.phone = phone
                 
+                # ✅ Extrair LinkedIn se não tiver
+                if not candidate.linkedin_url:
+                    linkedin = extract_linkedin_from_text(candidate.resume_text)
+                    if linkedin:
+                        candidate.linkedin_url = linkedin
+                        print(f"🔗 LinkedIn extraído: {linkedin}")
+                
                 print(f"✅ Analisado: {candidate.name} - Score: {ai_result['score']}")
                 
-                # 🔥 CORREÇÃO: Rollback em caso de erro e continuar com próximo candidato
                 db.session.commit()
                 
             except Exception as e:
                 print(f"❌ Erro ao analisar {candidate.name}: {str(e)}")
-                db.session.rollback()  # 🔥 IMPORTANTE: Rollback para continuar com próximo
+                db.session.rollback()
                 continue
         
         print("🎯 Análise em massa de PDFs concluída!")
         
     except Exception as e:
         print(f"❌ Erro no processamento em massa: {str(e)}")
-        db.session.rollback()  # 🔥 Rollback geral
+        db.session.rollback()
 
-@app.route('/jobs/<int:job_id>/reanalyze-all', methods=['POST'])
-@login_required
-def reanalyze_all_candidates(job_id):
-    """Reanalisa TODOS os candidatos da vaga"""
-    try:
-        # Resetar scores para forçar reanálise completa
-        Candidate.query.filter_by(job_id=job_id).update({'ai_score': None})
-        db.session.commit()
-        
-        # Processar análise em massa
-        process_bulk_analysis(job_id)
-        
-        flash('Reanálise em massa concluída! Todos os candidatos foram atualizados.', 'success')
-        return redirect(url_for('job_detail', job_id=job_id))
-        
-    except Exception as e:
-        flash(f'Erro ao iniciar reanálise: {str(e)}', 'danger')
-        return redirect(url_for('job_detail', job_id=job_id))
-
-# ==================== ROTAS EXISTENTES ====================
-
-@app.route('/candidate-space')
-@login_required
-def candidate_space():
-    """Página do Espaço Candidato - Versão segura sem linkedin_url"""
-    try:
-        # Buscar candidatos com score (consulta segura)
-        all_candidates = Candidate.query.filter(
-            Candidate.ai_score.isnot(None)
-        ).order_by(Candidate.ai_score.desc()).limit(50).all()
-        
-        # Processar dados para o template
-        top_candidates = []
-        for i, candidate in enumerate(all_candidates[:10]):  # Top 10
-            # Extrair localização do texto do currículo
-            city, state = extract_city_state_from_text(candidate.resume_text or "")
-            
-            # ✅ DADOS SEGUROS - sem linkedin_url
-            candidate_data = {
-                'id': candidate.id,
-                'name': candidate.name,
-                'email': candidate.email,
-                'score': candidate.ai_score or 0,
-                'city': city or "Não informada",
-                'state': state or "NI",
-                'experience': estimate_experience(candidate.resume_text or ""),
-                'education': extract_education(candidate.resume_text or ""),
-                'tech_score': candidate.ai_score or 0,
-                'phone': candidate.phone or "Não informado"
-            }
-            
-            # ✅ Tentar acessar linkedin_url apenas se existir
-            try:
-                if hasattr(candidate, 'linkedin_url') and candidate.linkedin_url:
-                    candidate_data['linkedin_url'] = candidate.linkedin_url
-                else:
-                    candidate_data['linkedin_url'] = None
-            except:
-                candidate_data['linkedin_url'] = None
-                
-            top_candidates.append(candidate_data)
-        
-        return render_template('candidate_space.html', top_candidates=top_candidates)
-        
-    except Exception as e:
-        print(f"❌ Erro no Espaço Candidato: {e}")
-        # Fallback: retorna lista vazia
-        return render_template('candidate_space.html', top_candidates=[])
+# ==================== ROTAS ====================
 
 @app.route('/')
 def index():
-    """Rota principal - verifica primeiro acesso"""
     if current_user.is_authenticated:
         return redirect(url_for('dashboard'))
     
@@ -1036,7 +473,6 @@ def index():
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    """Rota de login"""
     if current_user.is_authenticated:
         return redirect(url_for('dashboard'))
     
@@ -1061,7 +497,6 @@ def login():
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
-    """Rota de registro"""
     user_count = User.query.count()
     
     if user_count > 0 and not current_user.is_authenticated:
@@ -1121,77 +556,29 @@ def logout():
 @app.route('/dashboard')
 @login_required
 def dashboard():
-    """Dashboard com tratamento de erros robusto"""
     try:
-        # Consultas seguras com try/except
-        try:
-            total_jobs = Job.query.count()
-        except:
-            total_jobs = 0
-            
-        try:
-            total_candidates = Candidate.query.count()
-        except:
-            total_candidates = 0
-            
-        try:
-            pending_candidates = Candidate.query.filter_by(status='pending').count()
-        except:
-            pending_candidates = 0
-            
-        try:
-            candidates_with_score = Candidate.query.filter(Candidate.ai_score.isnot(None)).all()
-            if candidates_with_score:
-                avg_score = sum(c.ai_score for c in candidates_with_score) / len(candidates_with_score)
-            else:
-                avg_score = 0.0
-        except:
-            avg_score = 0.0
+        total_jobs = Job.query.count()
+        total_candidates = Candidate.query.count()
+        pending_candidates = Candidate.query.filter_by(status='pending').count()
         
-        # Dados mockados para evitar erros
-        top_skills = [
-            ('Python', 15),
-            ('JavaScript', 12),
-            ('React', 10),
-            ('SQL', 8),
-            ('Docker', 6),
-        ]
+        candidates_with_score = Candidate.query.filter(Candidate.ai_score.isnot(None)).all()
+        avg_score = sum(c.ai_score for c in candidates_with_score) / len(candidates_with_score) if candidates_with_score else 0.0
         
-        seniority_counts = {
-            'Júnior': 8,
-            'Pleno': 12,
-            'Sênior': 6,
-            'Especialista': 3,
-        }
-        
-        # Consultas seguras para dados recentes
-        try:
-            recent_jobs = Job.query.order_by(Job.created_at.desc()).limit(5).all()
-        except:
-            recent_jobs = []
-            
-        try:
-            recent_candidates = Candidate.query.order_by(Candidate.created_at.desc()).limit(5).all()
-        except:
-            recent_candidates = []
-        
-        total_interviews = 0
+        recent_jobs = Job.query.order_by(Job.created_at.desc()).limit(5).all()
+        recent_candidates = Candidate.query.order_by(Candidate.created_at.desc()).limit(5).all()
         
         return render_template('dashboard.html',
                              total_jobs=total_jobs,
                              total_candidates=total_candidates,
                              pending_candidates=pending_candidates,
                              avg_score=round(avg_score, 1),
-                             total_interviews=total_interviews,
-                             jobs=recent_jobs,  # Passando jobs para o template
-                             top_skills=top_skills,
-                             seniority_counts=seniority_counts,
+                             total_interviews=0,
+                             jobs=recent_jobs,
                              recent_jobs=recent_jobs,
                              recent_candidates=recent_candidates)
                              
     except Exception as e:
-        print(f"❌ Erro crítico no dashboard: {e}")
-        # Fallback: dashboard mínimo
+        print(f"❌ Erro no dashboard: {e}")
         return render_template('dashboard.html',
                              total_jobs=0,
                              total_candidates=0,
@@ -1199,130 +586,61 @@ def dashboard():
                              avg_score=0,
                              total_interviews=0,
                              jobs=[],
-                             top_skills=[],
-                             seniority_counts={},
                              recent_jobs=[],
                              recent_candidates=[])
 
 @app.route('/jobs')
 @login_required
 def jobs():
-    """Listar todas as vagas - Versão ultra segura"""
     try:
-        print("📋 Acessando listagem de vagas...")
-        
-        # Buscar vagas SEM carregar candidatos automaticamente
         all_jobs = Job.query.order_by(Job.created_at.desc()).all()
         
-        print(f"✅ {len(all_jobs)} vagas encontradas")
-        
-        # Contar candidatos manualmente para evitar o erro de linkedin_url
         for job in all_jobs:
             try:
-                # Contar sem carregar os objetos completos
-                job.candidate_count = db.session.query(Candidate.id)\
-                    .filter_by(job_id=job.id).count()
+                job.candidate_count = db.session.query(Candidate.id).filter_by(job_id=job.id).count()
             except Exception as e:
-                print(f"⚠️ Erro ao contar candidatos da vaga {job.id}: {e}")
                 job.candidate_count = 0
         
         return render_template('jobs.html', jobs=all_jobs)
         
     except Exception as e:
         print(f"❌ Erro ao listar vagas: {str(e)}")
-        import traceback
-        print(traceback.format_exc())
-        
-        flash('Erro ao carregar vagas. Tente novamente.', 'danger')
+        flash('Erro ao carregar vagas.', 'danger')
         return render_template('jobs.html', jobs=[])
 
 @app.route('/jobs/new', methods=['GET', 'POST'])
 @login_required
 def new_job():
-    """Criar nova vaga - Versão corrigida e segura"""
-    try:
-        if request.method == 'POST':
-            try:
-                # Debug: Log do recebimento do POST
-                print("🔵 POST recebido em /jobs/new")
-                print(f"🔵 Form data: {request.form}")
-                
-                # Capturar dados do formulário
-                title = request.form.get('title', '').strip()
-                description = request.form.get('description', '').strip()
-                requirements = request.form.get('requirements', '').strip()
+    if request.method == 'POST':
+        try:
+            title = request.form.get('title', '').strip()
+            description = request.form.get('description', '').strip()
+            requirements = request.form.get('requirements', '').strip()
 
-                print(f"📝 Título: {title}")
-                print(f"📝 Descrição: {description[:50] if description else 'Vazio'}")
-                print(f"📝 Requisitos: {requirements[:50] if requirements else 'Vazio'}")
-
-                # Validação básica
-                if not title:
-                    flash('O título da vaga é obrigatório!', 'danger')
-                    return render_template('new_job.html')
-
-                if len(title) < 3:
-                    flash('O título deve ter pelo menos 3 caracteres!', 'danger')
-                    return render_template('new_job.html')
-
-                # Log antes de criar
-                print(f"✅ Validação OK. Criando vaga...")
-                print(f"👤 User ID: {current_user.id}")
-
-                # Criar vaga com valores padrão seguros
-                job = Job(
-                    title=title,
-                    description=description if description else '',
-                    requirements=requirements if requirements else '',
-                    status='active',
-                    created_by=current_user.id
-                )
-                
-                # Adicionar ao banco
-                db.session.add(job)
-                db.session.flush()  # Flush para obter o ID antes do commit
-                
-                print(f"💾 Job adicionado à sessão. ID será: {job.id}")
-                
-                # Commit
-                db.session.commit()
-                
-                print(f"✅ Vaga criada com sucesso! ID: {job.id}")
-                flash(f'Vaga "{title}" criada com sucesso!', 'success')
-                
-                return redirect(url_for('jobs'))
-                
-            except Exception as e:
-                # Rollback em caso de erro
-                db.session.rollback()
-                
-                # Log detalhado do erro
-                print(f"❌ ERRO ao criar vaga:")
-                print(f"   Tipo: {type(e).__name__}")
-                print(f"   Mensagem: {str(e)}")
-                
-                import traceback
-                print(f"   Stack trace:")
-                print(traceback.format_exc())
-                
-                # Mensagem amigável para o usuário
-                flash(f'Erro ao criar vaga: {str(e)}', 'danger')
+            if not title:
+                flash('O título da vaga é obrigatório!', 'danger')
                 return render_template('new_job.html')
-        
-        # GET - Exibir formulário
-        print("📄 Exibindo formulário de nova vaga")
-        return render_template('new_job.html')
-                             
-    except Exception as e:
-        print(f"❌ ERRO CRÍTICO em new_job:")
-        print(f"   Tipo: {type(e).__name__}")
-        print(f"   Mensagem: {str(e)}")
-        
-        import traceback
-        print(traceback.format_exc())
-        
-        flash('Erro interno do servidor. Tente novamente.', 'danger')
-        return redirect(url_for('jobs'))
+
+            job = Job(
+                title=title,
+                description=description if description else '',
+                requirements=requirements if requirements else '',
+                status='active',
+                created_by=current_user.id
+            )
+            
+            db.session.add(job)
+            db.session.commit()
+            
+            flash(f'Vaga "{title}" criada com sucesso!', 'success')
+            return redirect(url_for('jobs'))
+            
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Erro ao criar vaga: {str(e)}', 'danger')
+            return render_template('new_job.html')
+    
+    return render_template('new_job.html')
 
 @app.route('/jobs/<int:job_id>')
 @login_required
@@ -1330,6 +648,80 @@ def job_detail(job_id):
     job = Job.query.get_or_404(job_id)
     candidates = Candidate.query.filter_by(job_id=job_id).order_by(Candidate.ai_score.desc()).all()
     return render_template('job_detail.html', job=job, candidates=candidates)
+
+@app.route('/jobs/<int:job_id>/bulk-upload', methods=['GET', 'POST'])
+@login_required
+def bulk_upload_candidates(job_id):
+    job = Job.query.get_or_404(job_id)
+    
+    if request.method == 'POST':
+        files = request.files.getlist('pdf_files')
+        
+        if not files or all(not file.filename for file in files):
+            flash('Por favor, selecione pelo menos um arquivo PDF.', 'danger')
+            return redirect(url_for('bulk_upload_candidates', job_id=job_id))
+        
+        candidates_added = 0
+        errors = []
+        
+        for file in files:
+            if not file.filename:
+                continue
+                
+            if not file.filename.lower().endswith('.pdf'):
+                errors.append(f"'{file.filename}' não é um PDF válido")
+                continue
+            
+            try:
+                filename = secure_filename(file.filename)
+                filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                file.save(filepath)
+                
+                resume_text = extract_text_from_pdf(filepath)
+                
+                if not resume_text.strip():
+                    errors.append(f"PDF '{filename}' não contém texto legível")
+                    os.remove(filepath)
+                    continue
+                
+                # ✅ Extrair dados automaticamente
+                candidate_name = extract_name_from_text(resume_text, filename)
+                candidate_email = extract_email_from_text(resume_text)
+                candidate_phone = extract_phone_from_text(resume_text)
+                candidate_linkedin = extract_linkedin_from_text(resume_text)  # ✅ EXTRAÇÃO DO LINKEDIN
+                
+                candidate = Candidate(
+                    name=candidate_name,
+                    email=candidate_email or f"candidato_{candidates_added + 1}@temp.com",
+                    phone=candidate_phone,
+                    linkedin_url=candidate_linkedin,  # ✅ SALVAR LINKEDIN
+                    resume_path=filepath,
+                    resume_text=resume_text,
+                    job_id=job_id,
+                    status='pending'
+                )
+                
+                db.session.add(candidate)
+                candidates_added += 1
+                
+                if candidate_linkedin:
+                    print(f"🔗 LinkedIn encontrado para {candidate_name}: {candidate_linkedin}")
+                
+            except Exception as e:
+                errors.append(f"Erro em '{file.filename}': {str(e)}")
+                continue
+        
+        if candidates_added > 0:
+            db.session.commit()
+            process_bulk_pdf_analysis(job_id)
+            flash(f'{candidates_added} currículos analisados com sucesso!', 'success')
+        
+        if errors:
+            flash(f'Alguns erros: {", ".join(errors[:3])}', 'warning')
+        
+        return redirect(url_for('job_detail', job_id=job_id))
+    
+    return render_template('bulk_upload_pdf.html', job=job)
 
 @app.route('/candidates/new/<int:job_id>', methods=['GET', 'POST'])
 @login_required
@@ -1347,11 +739,14 @@ def new_candidate(job_id):
             resume_text = extract_text_from_pdf(filepath)
             ai_result = analyze_candidate_with_ai(resume_text, job.description, job.requirements)
             
+            # ✅ Extrair LinkedIn do currículo
+            linkedin_url = extract_linkedin_from_text(resume_text)
+            
             candidate = Candidate(
                 name=request.form.get('name'),
                 email=request.form.get('email'),
                 phone=request.form.get('phone'),
-                linkedin_url=request.form.get('linkedin_url'),
+                linkedin_url=linkedin_url or request.form.get('linkedin_url'),  # ✅ Prioriza extração automática
                 resume_path=filepath,
                 resume_text=resume_text,
                 job_id=job_id,
@@ -1391,51 +786,50 @@ def update_candidate_status(candidate_id):
     flash('Status atualizado!', 'success')
     return redirect(url_for('candidate_detail', candidate_id=candidate_id))
 
-@app.route('/metrics')
+@app.route('/candidate/<int:candidate_id>/reanalyze', methods=['POST'])
 @login_required
-def metrics():
-    """Página de métricas"""
-    total_candidates = Candidate.query.count()
-    total_interviews = 0
+def reanalyze_candidate(candidate_id):
+    candidate = Candidate.query.get_or_404(candidate_id)
+    job = Job.query.get_or_404(candidate.job_id)
     
-    candidates_with_score = Candidate.query.filter(Candidate.ai_score.isnot(None)).all()
-    avg_score = sum(c.ai_score for c in candidates_with_score) / len(candidates_with_score) if candidates_with_score else 0
+    resume_text = candidate.resume_text 
     
-    top_skills = [
-        ('Python', 15),
-        ('JavaScript', 12),
-        ('React', 10),
-        ('SQL', 8),
-        ('Docker', 6),
-    ]
-    
-    seniority_counts = {
-        'Júnior': 8,
-        'Pleno': 12,
-        'Sênior': 6,
-        'Especialista': 3,
+    if not resume_text:
+        flash('Erro: Não foi possível encontrar o texto do currículo para reanálise.', 'danger')
+        return redirect(url_for('candidate_detail', candidate_id=candidate.id))
+
+    candidate_data = {
+        'name': candidate.name,
+        'resume_text': resume_text
     }
-    
-    jobs = Job.query.all()
-    
-    return render_template('metrics.html',
-                         total_candidates=total_candidates,
-                         total_interviews=total_interviews,
-                         avg_score=avg_score,
-                         top_skills=top_skills,
-                         seniority_counts=seniority_counts,
-                         jobs=jobs)
+    job_requirements = {
+        'title': job.title,
+        'level': 'Não especificado',
+        'description': job.description,
+        'skills_required': job.requirements
+    }
+
+    new_analysis = ai_analyzer.analyze_candidate(candidate_data, job_requirements)
+
+    if 'overall_score' in new_analysis:
+        candidate.ai_score = new_analysis['overall_score']
+        candidate.ai_analysis = json.dumps(new_analysis)
+        db.session.commit()
+        flash('Análise de IA concluída e atualizada com sucesso!', 'success')
+    else:
+        candidate.ai_analysis = json.dumps(new_analysis)
+        db.session.commit()
+        flash('Erro ao reanalisar o candidato. Verifique os detalhes na seção de Análise IA.', 'danger')
+
+    return redirect(url_for('candidate_detail', candidate_id=candidate.id))
 
 @app.route('/jobs/<int:job_id>/delete', methods=['POST'])
 @login_required
 def delete_job(job_id):
-    """Excluir vaga"""
     job = Job.query.get_or_404(job_id)
     
-    # Excluir todos os candidatos da vaga primeiro
     Candidate.query.filter_by(job_id=job_id).delete()
     
-    # Excluir a vaga
     db.session.delete(job)
     db.session.commit()
     
@@ -1445,18 +839,15 @@ def delete_job(job_id):
 @app.route('/candidates/<int:candidate_id>/delete', methods=['POST'])
 @login_required
 def delete_candidate(candidate_id):
-    """Excluir candidato"""
     candidate = Candidate.query.get_or_404(candidate_id)
     job_id = candidate.job_id
     
-    # Excluir arquivo do currículo se existir
     if candidate.resume_path and os.path.exists(candidate.resume_path):
         try:
             os.remove(candidate.resume_path)
         except:
             pass
     
-    # Excluir candidato
     db.session.delete(candidate)
     db.session.commit()
     
@@ -1466,7 +857,6 @@ def delete_candidate(candidate_id):
 @app.route('/jobs/<int:job_id>/export')
 @login_required
 def export_candidates(job_id):
-    """Exporta candidatos de uma vaga para CSV"""
     job = Job.query.get_or_404(job_id)
     candidates = Candidate.query.filter_by(job_id=job_id).order_by(Candidate.name).all()
     
@@ -1474,24 +864,21 @@ def export_candidates(job_id):
         flash('Nenhum candidato para exportar.', 'warning')
         return redirect(url_for('job_detail', job_id=job_id))
 
-    # Preparar dados para o DataFrame
     data = []
     for candidate in candidates:
         data.append({
             'Nome': candidate.name,
             'Email': candidate.email,
             'Telefone': candidate.phone,
-            'LinkedIn': candidate.linkedin_url
+            'LinkedIn': candidate.linkedin_url or ''
         })
         
     df = pd.DataFrame(data)
     
-    # Gerar CSV em memória
     output = io.StringIO()
     df.to_csv(output, index=False, encoding='utf-8-sig')
     output.seek(0)
     
-    # Enviar arquivo para download
     return send_file(
         io.BytesIO(output.getvalue().encode('utf-8')),
         mimetype='text/csv',
@@ -1499,22 +886,209 @@ def export_candidates(job_id):
         download_name=f'candidatos_{job.title.replace(" ", "_")}.csv'
     )
 
+@app.route('/candidate-space')
+@login_required
+def candidate_space():
+    try:
+        all_candidates = Candidate.query.filter(
+            Candidate.ai_score.isnot(None)
+        ).order_by(Candidate.ai_score.desc()).limit(50).all()
+        
+        top_candidates = []
+        for candidate in all_candidates[:10]:
+            city, state = extract_city_state_from_text(candidate.resume_text or "")
+            
+            candidate_data = {
+                'id': candidate.id,
+                'name': candidate.name,
+                'email': candidate.email,
+                'score': candidate.ai_score or 0,
+                'city': city or "Não informada",
+                'state': state or "NI",
+                'experience': estimate_experience(candidate.resume_text or ""),
+                'education': extract_education(candidate.resume_text or ""),
+                'tech_score': candidate.ai_score or 0,
+                'phone': candidate.phone or "Não informado",
+                'linkedin_url': candidate.linkedin_url  # ✅ Incluir LinkedIn
+            }
+            
+            top_candidates.append(candidate_data)
+        
+        return render_template('candidate_space.html', top_candidates=top_candidates)
+        
+    except Exception as e:
+        print(f"❌ Erro no Espaço Candidato: {e}")
+        return render_template('candidate_space.html', top_candidates=[])
+
+@app.route('/calendar')
+@login_required
+def calendar():
+    return render_template('calendar.html')
+
+@app.route('/api/calendar/events')
+@login_required
+def calendar_events():
+    interviews = Interview.query.filter(
+        Interview.status == 'scheduled'
+    ).all()
+    
+    events = []
+    for interview in interviews:
+        events.append({
+            'id': interview.id,
+            'title': f"{interview.candidate.name} - {interview.job.title}",
+            'start': interview.start_time.isoformat(),
+            'end': interview.end_time.isoformat(),
+            'color': '#007bff',
+            'extendedProps': {
+                'candidate_id': interview.candidate_id,
+                'job_id': interview.job_id,
+                'status': interview.status
+            }
+        })
+    
+    return jsonify(events)
+
+@app.route('/interviews')
+@login_required
+def interviews_list():
+    interviews = Interview.query.order_by(Interview.start_time.asc()).all()
+    return render_template('interviews_list.html', interviews=interviews)
+
+@app.route('/interviews/new', methods=['GET', 'POST'])
+@login_required
+def new_interview():
+    try:
+        if request.method == 'POST':
+            try:
+                candidate_id = request.form.get('candidate_id')
+                job_id = request.form.get('job_id')
+                title = request.form.get('title')
+                start_time = request.form.get('start_time')
+                end_time = request.form.get('end_time')
+                meeting_link = request.form.get('meeting_link')
+
+                if not all([candidate_id, job_id, title, start_time, end_time]):
+                    flash('Todos os campos obrigatórios devem ser preenchidos!', 'danger')
+                    return redirect(url_for('new_interview'))
+
+                interview = Interview(
+                    candidate_id=int(candidate_id),
+                    job_id=int(job_id),
+                    title=title,
+                    description=request.form.get('description', ''),
+                    start_time=datetime.fromisoformat(start_time),
+                    end_time=datetime.fromisoformat(end_time),
+                    meeting_link=meeting_link or '',
+                    notes=request.form.get('notes', ''),
+                    created_by=current_user.id
+                )
+                
+                db.session.add(interview)
+                db.session.commit()
+                
+                flash('Entrevista agendada com sucesso!', 'success')
+                return redirect(url_for('calendar'))
+                
+            except Exception as e:
+                flash(f'Erro ao agendar entrevista: {str(e)}', 'danger')
+        
+        candidates = Candidate.query.all()
+        jobs = Job.query.all()
+        
+        return render_template('new_interview.html', 
+                             candidates=candidates, 
+                             jobs=jobs)
+                             
+    except Exception as e:
+        flash('Erro interno do servidor. Tente novamente.', 'danger')
+        return redirect(url_for('calendar'))
+
+@app.route('/interviews/<int:interview_id>/delete', methods=['POST'])
+@login_required
+def delete_interview(interview_id):
+    interview = Interview.query.get_or_404(interview_id)
+    interview.status = 'cancelled'
+    db.session.commit()
+    
+    flash('Entrevista cancelada!', 'success')
+    return redirect(url_for('calendar'))
+
+@app.route('/interviews/<int:interview_id>/send-whatsapp')
+@login_required
+def send_interview_whatsapp(interview_id):
+    interview = Interview.query.get_or_404(interview_id)
+    candidate = interview.candidate
+    
+    if not candidate.phone:
+        flash('Candidato não possui telefone cadastrado!', 'danger')
+        return redirect(url_for('calendar'))
+    
+    start_time = interview.start_time
+    formatted_date = start_time.strftime('%d/%m/%Y')
+    formatted_time = start_time.strftime('%H:%M')
+    
+    message = f"""Olá {candidate.name}! 
+
+🎯 *Convite para Entrevista*
+
+📅 *Data:* {formatted_date}
+⏰ *Horário:* {formatted_time}
+💼 *Vaga:* {interview.job.title}
+
+"""
+    
+    if interview.meeting_link:
+        message += f"🔗 *Link da Reunião:* {interview.meeting_link}\n\n"
+    
+    message += f"""Por favor, confirme sua disponibilidade.
+
+Atenciosamente,
+Equipe TalentScope AI"""
+    
+    encoded_message = quote(message)
+    
+    interview.whatsapp_sent = True
+    interview.whatsapp_sent_at = datetime.utcnow()
+    db.session.commit()
+    
+    base_url = whatsapp_link(candidate.phone)
+    whatsapp_url = f"{base_url}&text={encoded_message}"
+    
+    flash('Convite preparado para envio no WhatsApp!', 'success')
+    return redirect(whatsapp_url)
+
+@app.route('/metrics')
+@login_required
+def metrics():
+    total_candidates = Candidate.query.count()
+    total_interviews = 0
+    
+    candidates_with_score = Candidate.query.filter(Candidate.ai_score.isnot(None)).all()
+    avg_score = sum(c.ai_score for c in candidates_with_score) / len(candidates_with_score) if candidates_with_score else 0
+    
+    jobs = Job.query.all()
+    
+    return render_template('metrics.html',
+                         total_candidates=total_candidates,
+                         total_interviews=total_interviews,
+                         avg_score=avg_score,
+                         jobs=jobs)
+
 # ==================== INICIALIZAÇÃO ====================
 with app.app_context():
     try:
         db.create_all()
         print("✅ Tabelas criadas com sucesso!")
         
-        # 🔥 CORREÇÃO: SQLite não suporta IF NOT EXISTS, usar try/except
         try:
-            # Verificar se as colunas já existem
             inspector = db.inspect(db.engine)
             existing_columns = [col['name'] for col in inspector.get_columns('candidate')]
             
             if 'resume_text' not in existing_columns:
                 db.engine.execute(text("ALTER TABLE candidate ADD COLUMN resume_text TEXT"))
                 print("✅ Coluna resume_text adicionada!")
-                
+            
             if 'linkedin_url' not in existing_columns:
                 db.engine.execute(text("ALTER TABLE candidate ADD COLUMN linkedin_url VARCHAR(500)"))
                 print("✅ Coluna linkedin_url adicionada!")
@@ -1526,7 +1100,7 @@ with app.app_context():
         print("✅ Banco de dados inicializado!")
     except Exception as e:
         print(f"⚠️ Aviso ao inicializar banco: {e}")
-# Configuração para produção no Render
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
