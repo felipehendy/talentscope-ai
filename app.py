@@ -19,15 +19,13 @@ from ai_analyzer import AIAnalyzer
 import json
 from sqlalchemy import text, create_engine
 from sqlalchemy.exc import SQLAlchemyError
-from flask_wtf.csrf import CSRFProtect
+
 
 # --- Configuração ---
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'sua-chave-secreta-super-segura-123')
 
-# ✅ ADICIONE CSRF PROTECTION
-csrf = CSRFProtect()
-csrf.init_app(app)
+
 
 # ✅ CONFIGURAÇÃO CORRETA DO BANCO PARA RENDER
 def get_database_url():

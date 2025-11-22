@@ -59,45 +59,47 @@ para Recrutamento</p>
 
        
 
-        <!-- Formulário de Registro -->
-        <form method="POST" action="{{ url_for('register') }}">
-            <div class="form-group">
-                <label for="username" class="form-label">Nome de Usuário</label>
-                <div class="input-icon">
-                    <input type="text" id="username" name="username" class="form-control" 
-                           placeholder="Escolha um nome de usuário" required>
-                    <i class="fas fa-user"></i>
-                </div>
-            </div>
+        <!-- Formulário de Registro CORRIGIDO -->
+<form method="POST" action="{{ url_for('register') }}">
+    
+    
+    <div class="form-group">
+        <label for="username" class="form-label">Nome de Usuário</label>
+        <div class="input-icon">
+            <input type="text" id="username" name="username" class="form-control" 
+                   placeholder="Escolha um nome de usuário" required value="{{ request.form.username or '' }}">
+            <i class="fas fa-user"></i>
+        </div>
+    </div>
 
-            <div class="form-group">
-                <label for="email" class="form-label">E-mail</label>
-                <div class="input-icon">
-                    <input type="email" id="email" name="email" class="form-control" 
-                           placeholder="seu@email.com" required>
-                    <i class="fas fa-envelope"></i>
-                </div>
-            </div>
+    <div class="form-group">
+        <label for="email" class="form-label">E-mail</label>
+        <div class="input-icon">
+            <input type="email" id="email" name="email" class="form-control" 
+                   placeholder="seu@email.com" required value="{{ request.form.email or '' }}">
+            <i class="fas fa-envelope"></i>
+        </div>
+    </div>
 
-            <div class="form-group">
-                <label for="password" class="form-label">Senha</label>
-                <div class="input-icon">
-                    <input type="password" id="password" name="password" class="form-control" 
-                           placeholder="••••••••" required minlength="6">
-                    <i class="fas fa-lock"></i>
-                </div>
-                <small class="text-muted">Mínimo 6 caracteres</small>
-            </div>
+    <div class="form-group">
+        <label for="password" class="form-label">Senha</label>
+        <div class="input-icon">
+            <input type="password" id="password" name="password" class="form-control" 
+                   placeholder="••••••••" required minlength="6">
+            <i class="fas fa-lock"></i>
+        </div>
+        <small class="text-muted">Mínimo 6 caracteres</small>
+    </div>
 
-            <button type="submit" class="btn-submit" style="background: linear-gradient(135deg, var(--d1000-green), #449d44);">
-                <i class="fas fa-user-plus"></i> 
-                {% if is_first_user %}
-                    Criar Conta de Administrador
-                {% else %}
-                    Criar Conta
-                {% endif %}
-            </button>
-        </form>
+    <button type="submit" class="btn-submit" style="background: linear-gradient(135deg, var(--d1000-green), #449d44);">
+        <i class="fas fa-user-plus"></i> 
+        {% if is_first_user %}
+            Criar Conta de Administrador
+        {% else %}
+            Criar Conta
+        {% endif %}
+    </button>
+</form>
 
         <div class="form-footer">
             <p>Já tem uma conta? <a href="{{ url_for('login') }}">Faça o login</a></p>
