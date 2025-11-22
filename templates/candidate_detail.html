@@ -4,6 +4,7 @@
 
 {% block content %}
 <div class="container-fluid">
+    <!-- Cabeçalho com Navegação -->
     <div class="row mb-4">
         <div class="col-12">
             <nav aria-label="breadcrumb">
@@ -17,137 +18,172 @@
         </div>
     </div>
 
-    <!-- 🔥 NOVO: Cabeçalho com Botão de Excluir -->
+    <!-- Cabeçalho Principal -->
     <div class="row mb-4">
         <div class="col-12">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
-                    <h2 class="mb-0">
+                    <h1 class="mb-1">
                         <i class="fas fa-user-tie me-2 text-primary"></i>
                         {{ candidate.name }}
-                    </h2>
-                    <p class="text-muted mb-0">Candidato para {{ candidate.job.title }}</p>
+                    </h1>
+                    <p class="lead mb-0 text-muted">Candidato para <strong>{{ candidate.job.title }}</strong></p>
                 </div>
-                <div>
+                <div class="btn-group">
+                    <a href="{{ url_for('schedule_interview_from_candidate', candidate_id=candidate.id) }}" 
+                       class="btn btn-primary">
+                        <i class="fas fa-calendar-plus me-2"></i>Agendar Entrevista
+                    </a>
                     <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteCandidateModal">
-                        <i class="fas fa-trash me-2"></i>Excluir Candidato
+                        <i class="fas fa-trash me-2"></i>Excluir
                     </button>
                 </div>
             </div>
         </div>
     </div>
-    <!-- 🔥 FIM DO NOVO CABEÇALHO -->
 
     <div class="row">
-        <!-- Coluna Esquerda: Info do Candidato -->
+        <!-- Coluna Esquerda: Informações do Candidato -->
         <div class="col-lg-4 mb-4">
             <!-- Card Perfil -->
             <div class="card mb-4">
                 <div class="card-header bg-primary text-white">
-                    <h5 class="mb-0"><i class="fas fa-user me-2"></i>Perfil do Candidato</h5>
+                    <h5 class="mb-0">
+                        <i class="fas fa-id-card me-2"></i>
+                        Perfil do Candidato
+                    </h5>
                 </div>
                 <div class="card-body text-center">
-                    <div class="mb-3">
-                        <div class="avatar-circle mx-auto mb-3" style="width: 100px; height: 100px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 40px; color: white; font-weight: bold;">
+                    <div class="mb-4">
+                        <div class="avatar-circle mx-auto mb-3" 
+                             style="width: 100px; height: 100px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 40px; color: white; font-weight: bold;">
                             {{ candidate.name[0].upper() }}
                         </div>
                         <h4 class="mb-1">{{ candidate.name }}</h4>
-                        <p class="text-muted">{{ candidate.job.title }}</p>
+                        <p class="text-muted mb-2">{{ candidate.job.title }}</p>
+                        
+                        <!-- Score IA -->
+                        <div class="mb-3">
+                            <span class="badge {% if candidate.ai_score >= 8 %}bg-success{% elif candidate.ai_score >= 6 %}bg-warning{% else %}bg-danger{% endif %} fs-6">
+                                Score IA: {{ candidate.ai_score or 'N/A' }}
+                            </span>
+                        </div>
                     </div>
                     
                     <div class="text-start">
-                        {% if candidate.email %}
-                        <p class="mb-2">
-                            <i class="fas fa-envelope text-primary me-2"></i>
-                            <a href="mailto:{{ candidate.email }}">{{ candidate.email }}</a>
-                        </p>
-                        {% endif %}
-                        
-                        {% if candidate.phone %}
-                        <p class="mb-2">
-                            <i class="fas fa-phone text-success me-2"></i>
-                            {{ candidate.phone }}
-                        </p>
-                        {% endif %}
+                        <!-- Informações de Contato -->
+                        <div class="contact-info mb-3">
+                            <h6 class="text-uppercase text-muted mb-3">Contato</h6>
+                            
+                            {% if candidate.email %}
+                            <div class="d-flex align-items-center mb-2">
+                                <i class="fas fa-envelope text-primary me-3 fs-5"></i>
+                                <div>
+                                    <a href="mailto:{{ candidate.email }}" class="text-decoration-none">{{ candidate.email }}</a>
+                                </div>
+                            </div>
+                            {% endif %}
+                            
+                            {% if candidate.phone %}
+                            <div class="d-flex align-items-center mb-2">
+                                <i class="fas fa-phone text-success me-3 fs-5"></i>
+                                <div>
+                                    {{ candidate.phone }}
+                                    <a href="{{ candidate.phone|whatsapp_link }}" 
+                                       target="_blank" 
+                                       class="btn btn-success btn-sm ms-2">
+                                        <i class="fab fa-whatsapp"></i>
+                                    </a>
+                                </div>
+                            </div>
+                            {% endif %}
 
-                        {% if candidate.linkedin_url %}
-                        <p class="mb-2">
-                            <i class="fab fa-linkedin text-primary me-2"></i>
-                            <a href="{{ candidate.linkedin_url }}" target="_blank">{{ candidate.linkedin_url }}</a>
-                        </p>
-                        {% endif %}
-                        
-                        <p class="mb-2">
-                            <i class="fas fa-calendar text-info me-2"></i>
-                            Cadastrado em {{ candidate.created_at.strftime('%d/%m/%Y') }}
-                        </p>
+                            {% if candidate.linkedin_url %}
+                            <div class="d-flex align-items-center mb-2">
+                                <i class="fab fa-linkedin text-primary me-3 fs-5"></i>
+                                <div>
+                                    <a href="{{ candidate.linkedin_url }}" target="_blank" class="text-decoration-none">LinkedIn</a>
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Informações do Processo -->
+                        <div class="process-info">
+                            <h6 class="text-uppercase text-muted mb-3">Processo</h6>
+                            
+                            <div class="d-flex justify-content-between mb-2">
+                                <span>Status:</span>
+                                <span class="badge {% if candidate.status == 'approved' %}bg-success{% elif candidate.status == 'rejected' %}bg-danger{% elif candidate.status == 'interview' %}bg-info{% else %}bg-warning{% endif %}">
+                                    {% if candidate.status == 'pending' %}Pendente
+                                    {% elif candidate.status == 'interview' %}Entrevista
+                                    {% elif candidate.status == 'approved' %}Aprovado
+                                    {% elif candidate.status == 'rejected' %}Reprovado
+                                    {% else %}{{ candidate.status }}{% endif %}
+                                </span>
+                            </div>
+                            
+                            <div class="d-flex justify-content-between mb-2">
+                                <span>Cadastrado em:</span>
+                                <span class="text-muted">{{ candidate.created_at.strftime('%d/%m/%Y') }}</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Card WhatsApp -->
+            <!-- Card Ações WhatsApp -->
+            {% if candidate.phone %}
             <div class="card mb-4 border-success">
-                <div class="card-header text-white" style="background: #25D366;">
-                    <h5 class="mb-0"><i class="fab fa-whatsapp me-2"></i>Ações via WhatsApp</h5>
+                <div class="card-header text-white" style="background: linear-gradient(135deg, #25D366, #128C7E);">
+                    <h5 class="mb-0">
+                        <i class="fab fa-whatsapp me-2"></i>
+                        Ações Rápidas WhatsApp
+                    </h5>
                 </div>
                 <div class="card-body">
-                    {% if candidate.phone %}
-                        <div class="d-grid gap-2">
-                            <!-- Abrir WhatsApp Direto -->
-                            <a href="{{ candidate.phone|whatsapp_link }}" 
-                               target="_blank" 
-                               class="btn btn-success btn-lg">
-                                <i class="fab fa-whatsapp me-2"></i>Abrir WhatsApp
-                            </a>
-                            
-                            <hr>
-                            
-                            <!-- Mensagens Pré-Prontas -->
-                            <small class="text-muted mb-2 d-block"><strong>Mensagens Prontas:</strong></small>
-                            
-                            <a href="{{ candidate.phone|whatsapp_link }}?text={{ ('Olá ' + candidate.name + '! Gostaria de marcar uma entrevista para a vaga de ' + candidate.job.title + '. Você tem disponibilidade esta semana?')|urlencode }}" 
-                               target="_blank" 
-                               class="btn btn-outline-success">
-                                <i class="fas fa-calendar-alt me-2"></i>Convidar para Entrevista
-                            </a>
-                            
-                            <a href="{{ candidate.phone|whatsapp_link }}?text={{ ('Parabéns ' + candidate.name + '! 🎉 Você foi aprovado(a) para a vaga de ' + candidate.job.title + '! Em breve entraremos em contato com os próximos passos.')|urlencode }}" 
-                               target="_blank" 
-                               class="btn btn-outline-success">
-                                <i class="fas fa-check-circle me-2"></i>Enviar Aprovação
-                            </a>
-                            
-                            <a href="{{ candidate.phone|whatsapp_link }}?text={{ ('Olá ' + candidate.name + ', agradecemos sua participação no processo seletivo da vaga de ' + candidate.job.title + '. Infelizmente, neste momento, decidimos seguir com outros candidatos. Desejamos sucesso em sua jornada profissional!')|urlencode }}" 
-                               target="_blank" 
-                               class="btn btn-outline-danger">
-                                <i class="fas fa-times-circle me-2"></i>Enviar Reprovação
-                            </a>
-                            
-                            <a href="{{ candidate.phone|whatsapp_link }}?text={{ ('Olá ' + candidate.name + '! Tudo bem? Gostaria de algumas informações adicionais sobre sua candidatura para a vaga de ' + candidate.job.title + '.')|urlencode }}" 
-                               target="_blank" 
-                               class="btn btn-outline-primary">
-                                <i class="fas fa-question-circle me-2"></i>Solicitar Informações
-                            </a>
-                        </div>
-
-                        <!-- NOVO: Botão Agendar Entrevista -->
-<a href="{{ url_for('schedule_interview_from_candidate', candidate_id=candidate.id) }}" 
-   class="btn btn-primary">
-    <i class="fas fa-calendar-plus me-2"></i>Agendar Entrevista
-</a>
-                    {% else %}
-                        <div class="alert alert-warning mb-0">
-                            <i class="fas fa-exclamation-triangle me-2"></i>
-                            <strong>Atenção:</strong> Este candidato não possui telefone cadastrado.
-                        </div>
-                    {% endif %}
+                    <div class="d-grid gap-2">
+                        <!-- Abrir WhatsApp Direto -->
+                        <a href="{{ candidate.phone|whatsapp_link }}" 
+                           target="_blank" 
+                           class="btn btn-success btn-lg">
+                            <i class="fab fa-whatsapp me-2"></i>Abrir WhatsApp
+                        </a>
+                        
+                        <hr class="my-3">
+                        
+                        <!-- Mensagens Pré-Prontas -->
+                        <small class="text-muted mb-2 d-block text-center"><strong>Mensagens Prontas:</strong></small>
+                        
+                        <a href="{{ candidate.phone|whatsapp_link }}?text={{ ('Olá ' + candidate.name + '! Gostaria de marcar uma entrevista para a vaga de ' + candidate.job.title + '. Você tem disponibilidade esta semana?')|urlencode }}" 
+                           target="_blank" 
+                           class="btn btn-outline-success">
+                            <i class="fas fa-calendar-alt me-2"></i>Convidar para Entrevista
+                        </a>
+                        
+                        <a href="{{ candidate.phone|whatsapp_link }}?text={{ ('Parabéns ' + candidate.name + '! 🎉 Você foi aprovado(a) para a vaga de ' + candidate.job.title + '! Em breve entraremos em contato com os próximos passos.')|urlencode }}" 
+                           target="_blank" 
+                           class="btn btn-outline-success">
+                            <i class="fas fa-check-circle me-2"></i>Enviar Aprovação
+                        </a>
+                        
+                        <a href="{{ candidate.phone|whatsapp_link }}?text={{ ('Olá ' + candidate.name + ', agradecemos sua participação no processo seletivo da vaga de ' + candidate.job.title + '. Infelizmente, neste momento, decidimos seguir com outros candidatos. Desejamos sucesso em sua jornada profissional!')|urlencode }}" 
+                           target="_blank" 
+                           class="btn btn-outline-danger">
+                            <i class="fas fa-times-circle me-2"></i>Enviar Reprovação
+                        </a>
+                    </div>
                 </div>
             </div>
+            {% endif %}
 
             <!-- Card Status -->
             <div class="card">
                 <div class="card-header bg-info text-white">
-                    <h5 class="mb-0"><i class="fas fa-flag me-2"></i>Alterar Status</h5>
+                    <h5 class="mb-0">
+                        <i class="fas fa-flag me-2"></i>
+                        Alterar Status
+                    </h5>
                 </div>
                 <div class="card-body">
                     <form method="POST" action="{{ url_for('update_candidate_status', candidate_id=candidate.id) }}">
@@ -166,123 +202,144 @@
                             </option>
                         </select>
                         <button type="submit" class="btn btn-info w-100">
-                            <i class="fas fa-save me-2"></i>Salvar Status
+                            <i class="fas fa-save me-2"></i>Atualizar Status
                         </button>
                     </form>
                 </div>
             </div>
         </div>
 
-        <!-- Coluna Direita: Análise AI -->
+        <!-- Coluna Direita: Análise e Detalhes -->
         <div class="col-lg-8">
-            <!-- Score AI -->
+            <!-- Score e Análise IA -->
             <div class="card mb-4">
                 <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0"><i class="fas fa-brain me-2"></i>Análise IA - TalentScope</h5>
-                    
-                    <!-- Botão de Reanálise -->
+                    <h5 class="mb-0">
+                        <i class="fas fa-brain me-2"></i>
+                        Análise IA - TalentScope
+                    </h5>
+                    {% if candidate.ai_score %}
                     <form method="POST" action="{{ url_for('reanalyze_candidate', candidate_id=candidate.id) }}" class="m-0">
                         <button type="submit" class="btn btn-sm btn-warning" title="Reanalisar Candidato com a IA">
                             <i class="fas fa-sync-alt me-1"></i> Reanalisar IA
                         </button>
                     </form>
+                    {% endif %}
                 </div>
                 <div class="card-body">
-                    <div class="row text-center mb-4">
-                        <div class="col-md-6">
-                            <h2 class="display-4 text-primary mb-0">{{ candidate.ai_score or 0 }}%</h2>
-                            <p class="text-muted">Score Geral</p>
-                            <div class="progress" style="height: 10px;">
-                                <div class="progress-bar" role="progressbar" 
-                                     style="width: {{ candidate.ai_score or 0 }}%; background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);">
+                    {% if candidate.ai_score %}
+                        <div class="row text-center mb-4">
+                            <div class="col-md-6">
+                                <h2 class="display-4 text-primary mb-0">{{ candidate.ai_score }}</h2>
+                                <p class="text-muted">Score Geral</p>
+                                <div class="progress" style="height: 12px;">
+                                    <div class="progress-bar {% if candidate.ai_score >= 8 %}bg-success{% elif candidate.ai_score >= 6 %}bg-warning{% else %}bg-danger{% endif %}" 
+                                         role="progressbar" 
+                                         style="width: {{ candidate.ai_score * 10 }}%">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <h2 class="display-4 mb-0" style="color: #25D366;">
+                                    {{ analysis.match_percentage or candidate.ai_score * 10 }}%
+                                </h2>
+                                <p class="text-muted">Match com Vaga</p>
+                                <div class="progress" style="height: 12px;">
+                                    <div class="progress-bar bg-success" role="progressbar" 
+                                         style="width: {{ analysis.match_percentage or candidate.ai_score * 10 }}%">
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                        <div class="col-md-6">
-                            <h2 class="display-4 mb-0" style="color: #25D366;">
-                                {{ analysis.match_percentage or 0 }}%
-                            </h2>
-                            <p class="text-muted">Match com Vaga</p>
-                            <div class="progress" style="height: 10px;">
-                                <div class="progress-bar bg-success" role="progressbar" 
-                                     style="width: {{ analysis.match_percentage or 0 }}%;">
-                                </div>
-                            </div>
-                        </div>
-                    </div>
 
-                    {% if analysis %}
-                        {% if analysis.error %}
-                            <!-- Exibição de Erro -->
-                            <div class="alert alert-danger mb-4">
-                                <h6 class="alert-heading"><i class="fas fa-exclamation-circle me-2"></i>Erro na Análise de IA</h6>
-                                <p class="mb-0">
-                                    A análise falhou devido a um problema de comunicação com a API.
-                                    <br>
-                                    <strong>Detalhes do Erro:</strong>
-                                </p>
-                                <pre class="mt-2 p-2 bg-light text-danger border rounded" style="white-space: pre-wrap; word-break: break-all;">{{ analysis.error }}</pre>
-                                <p class="mb-0">
-                                    <i class="fas fa-lightbulb me-2"></i>
-                                    <strong>Recomendação:</strong> Verifique a chave de API da OpenAI no seu arquivo de configuração.
-                                </p>
-                            </div>
-                        {% else %}
-                            <div class="row">
-                                <div class="col-md-6 mb-3">
-                                    <h6 class="text-success"><i class="fas fa-check-circle me-2"></i>Pontos Fortes</h6>
-                                    <ul class="list-unstyled">
-                                        {% for strength in analysis.strengths %}
-                                        <li class="mb-2">
-                                            <i class="fas fa-chevron-right text-success me-2"></i>{{ strength }}
-                                        </li>
-                                        {% endfor %}
-                                    </ul>
+                        {% if analysis %}
+                            {% if analysis.error %}
+                                <!-- Exibição de Erro -->
+                                <div class="alert alert-danger">
+                                    <h6 class="alert-heading"><i class="fas fa-exclamation-circle me-2"></i>Erro na Análise de IA</h6>
+                                    <p class="mb-2">{{ analysis.error }}</p>
                                 </div>
-                                <div class="col-md-6 mb-3">
-                                    <h6 class="text-warning"><i class="fas fa-exclamation-triangle me-2"></i>Pontos de Atenção</h6>
-                                    <ul class="list-unstyled">
-                                        {% for weakness in analysis.weaknesses %}
-                                        <li class="mb-2">
-                                            <i class="fas fa-chevron-right text-warning me-2"></i>{{ weakness }}
-                                        </li>
-                                        {% endfor %}
-                                    </ul>
+                            {% else %}
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <div class="card border-success h-100">
+                                            <div class="card-header bg-success text-white">
+                                                <h6 class="mb-0"><i class="fas fa-check-circle me-2"></i>Pontos Fortes</h6>
+                                            </div>
+                                            <div class="card-body">
+                                                <ul class="list-unstyled mb-0">
+                                                    {% for strength in analysis.strengths %}
+                                                    <li class="mb-2">
+                                                        <i class="fas fa-chevron-right text-success me-2"></i>{{ strength }}
+                                                    </li>
+                                                    {% endfor %}
+                                                </ul>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <div class="card border-warning h-100">
+                                            <div class="card-header bg-warning text-white">
+                                                <h6 class="mb-0"><i class="fas fa-exclamation-triangle me-2"></i>Pontos de Atenção</h6>
+                                            </div>
+                                            <div class="card-body">
+                                                <ul class="list-unstyled mb-0">
+                                                    {% for weakness in analysis.weaknesses %}
+                                                    <li class="mb-2">
+                                                        <i class="fas fa-chevron-right text-warning me-2"></i>{{ weakness }}
+                                                    </li>
+                                                    {% endfor %}
+                                                </ul>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
-                            </div>
 
-                            <div class="alert alert-info">
-                                <h6 class="alert-heading"><i class="fas fa-lightbulb me-2"></i>Recomendação da IA</h6>
-                                <p class="mb-0"><strong>{{ analysis.recommendation }}</strong></p>
-                                <hr>
-                                <p class="mb-0">{{ analysis.summary }}</p>
-                            </div>
+                                <div class="alert alert-info mt-3">
+                                    <h6 class="alert-heading"><i class="fas fa-lightbulb me-2"></i>Recomendação da IA</h6>
+                                    <p class="mb-2"><strong>{{ analysis.recommendation }}</strong></p>
+                                    <hr>
+                                    <p class="mb-0">{{ analysis.summary }}</p>
+                                </div>
+                            {% endif %}
                         {% endif %}
                     {% else %}
-                    <div class="alert alert-warning">
-                        <i class="fas fa-info-circle me-2"></i>
-                        Análise da IA não disponível para este candidato.
-                    </div>
+                        <div class="text-center py-4">
+                            <i class="fas fa-brain fa-3x text-muted mb-3"></i>
+                            <h5 class="text-muted">Análise de IA Pendente</h5>
+                            <p class="text-muted mb-3">Este candidato ainda não foi analisado pela inteligência artificial.</p>
+                            <form method="POST" action="{{ url_for('reanalyze_candidate', candidate_id=candidate.id) }}">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-play me-2"></i>Executar Análise IA
+                                </button>
+                            </form>
+                        </div>
                     {% endif %}
                 </div>
             </div>
 
-            <!-- Currículo -->
+            <!-- Currículo e Informações Adicionais -->
             {% if candidate.resume_path %}
             <div class="card">
                 <div class="card-header bg-secondary text-white">
-                    <h5 class="mb-0"><i class="fas fa-file-pdf me-2"></i>Currículo</h5>
+                    <h5 class="mb-0">
+                        <i class="fas fa-file-pdf me-2"></i>
+                        Currículo
+                    </h5>
                 </div>
                 <div class="card-body">
-                    <p class="mb-3">
-                        <i class="fas fa-paperclip me-2"></i>
-                        Arquivo anexado: <code>{{ candidate.resume_path.split('/')[-1] }}</code>
-                    </p>
-                    <a href="{{ url_for('static', filename='uploads/' + candidate.resume_path.split('/')[-1]) }}" 
-                       target="_blank" 
-                       class="btn btn-outline-secondary">
-                        <i class="fas fa-download me-2"></i>Baixar Currículo
-                    </a>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <i class="fas fa-paperclip me-2 text-muted"></i>
+                            <strong>Arquivo:</strong> 
+                            <code>{{ candidate.resume_path.split('/')[-1] }}</code>
+                        </div>
+                        <a href="{{ url_for('static', filename='uploads/' + candidate.resume_path.split('/')[-1]) }}" 
+                           target="_blank" 
+                           class="btn btn-outline-secondary">
+                            <i class="fas fa-download me-2"></i>Baixar Currículo
+                        </a>
+                    </div>
                 </div>
             </div>
             {% endif %}
@@ -290,7 +347,7 @@
     </div>
 </div>
 
-<!-- 🔥 MODAL DE CONFIRMAÇÃO PARA EXCLUIR -->
+<!-- Modal de Confirmação para Excluir -->
 <div class="modal fade" id="deleteCandidateModal" tabindex="-1" aria-labelledby="deleteCandidateModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -328,29 +385,53 @@
 </div>
 
 <style>
-@media (max-width: 768px) {
-    .btn {
-        padding: 12px;
-        font-size: 14px;
-    }
-    
-    .display-4 {
-        font-size: 2.5rem;
-    }
-    
-    .card {
-        margin-bottom: 15px;
-    }
+.avatar-circle {
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
 }
 
-/* Animação do Modal */
-.modal.fade .modal-dialog {
-    transition: transform .3s ease-out;
-}
-
-.modal-content {
+.card {
+    transition: transform 0.2s, box-shadow 0.2s;
     border: none;
-    box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+    box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+}
+
+.contact-info .fas, .contact-info .fab {
+    width: 20px;
+    text-align: center;
+}
+
+.breadcrumb {
+    background: transparent;
+    padding: 0;
+}
+
+.progress {
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.btn {
+    transition: all 0.2s;
+}
+
+@media (max-width: 768px) {
+    .display-4 {
+        font-size: 2rem;
+    }
+    
+    .btn-group {
+        width: 100%;
+        margin-top: 1rem;
+    }
+    
+    .btn-group .btn {
+        flex: 1;
+    }
 }
 </style>
 {% endblock %}

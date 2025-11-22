@@ -195,79 +195,62 @@
         font-size: 0.9rem;
         font-weight: 600;
     }
-    
-    /* Novos estilos para exportação em massa */
-    .export-section {
-        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-        border: none;
-        border-radius: 15px;
-        padding: 2rem;
+
+    /* Estatísticas Rápidas */
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
         margin-bottom: 2rem;
-        box-shadow: 0 5px 20px rgba(0,0,0,0.08);
     }
     
-    .export-section .card-title {
-        color: var(--d1000-dark);
-        font-weight: 700;
-        margin-bottom: 1.5rem;
-        font-size: 1.3rem;
-    }
-    
-    .btn-export-all {
-        background: linear-gradient(135deg, var(--d1000-green) 0%, #4CAF50 100%);
-        border: none;
-        padding: 1rem 1.5rem;
-        border-radius: 10px;
-        font-weight: 600;
-        color: white;
-        transition: all 0.3s ease;
-        width: 100%;
-        text-align: left;
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-        box-shadow: 0 5px 15px rgba(92, 184, 92, 0.3);
-    }
-    
-    .btn-export-all:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 8px 20px rgba(92, 184, 92, 0.4);
-        color: white;
-    }
-    
-    .btn-export-individual {
-        background: linear-gradient(135deg, var(--d1000-blue) 0%, var(--d1000-dark) 100%);
-        border: none;
-        padding: 1rem 1.5rem;
-        border-radius: 10px;
-        font-weight: 600;
-        color: white;
-        transition: all 0.3s ease;
-        width: 100%;
-        text-align: left;
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-        box-shadow: 0 5px 15px rgba(2, 117, 216, 0.3);
-    }
-    
-    .btn-export-individual:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 8px 20px rgba(2, 117, 216, 0.4);
-        color: white;
-    }
-    
-    .export-description {
-        color: #718096;
-        font-size: 0.85rem;
-        margin-top: 0.5rem;
-        line-height: 1.4;
-    }
-    
-    .export-icon {
-        font-size: 1.2rem;
-        width: 30px;
+    .stat-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.08);
         text-align: center;
+        transition: transform 0.3s ease;
+    }
+    
+    .stat-card:hover {
+        transform: translateY(-3px);
+    }
+    
+    .stat-number {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: var(--d1000-blue);
+        margin-bottom: 0.5rem;
+    }
+    
+    .stat-label {
+        color: #718096;
+        font-size: 0.9rem;
+        font-weight: 600;
+    }
+    
+    /* Responsividade */
+    @media (max-width: 768px) {
+        .page-header {
+            padding: 1.5rem;
+        }
+        
+        .page-header h1 {
+            font-size: 1.5rem;
+        }
+        
+        .job-card .card-body {
+            padding: 1.5rem;
+        }
+        
+        .job-card .card-title {
+            font-size: 1.2rem;
+        }
+        
+        .stats-grid {
+            grid-template-columns: 1fr;
+        }
     }
 </style>
 
@@ -277,7 +260,7 @@
             <h1>
                 <i class="fas fa-briefcase me-3"></i>Vagas
                 {% if jobs %}
-                <span class="jobs-count">{{ jobs|length }}</span>
+                <span class="jobs-count">{{ jobs|length }} vaga{{ 's' if jobs|length > 1 else '' }}</span>
                 {% endif %}
             </h1>
         </div>
@@ -287,9 +270,34 @@
     </div>
 </div>
 
-
-
 {% if jobs %}
+<!-- Estatísticas Rápidas -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-number">{{ jobs|length }}</div>
+        <div class="stat-label">Total de Vagas</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-number">{{ jobs|selectattr('candidates')|map('length')|sum }}</div>
+        <div class="stat-label">Total de Candidatos</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-number">
+            {% set active_jobs = jobs|selectattr('status', 'equalto', 'active')|list %}
+            {{ active_jobs|length }}
+        </div>
+        <div class="stat-label">Vagas Ativas</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-number">
+            {% set recent_jobs = jobs|selectattr('created_at')|sort(attribute='created_at', reverse=true)|list %}
+            {{ (recent_jobs|first).created_at.strftime('%d/%m') if recent_jobs else 'N/A' }}
+        </div>
+        <div class="stat-label">Última Vaga</div>
+    </div>
+</div>
+
+<!-- Grid de Vagas -->
 <div class="row">
     {% for job in jobs %}
     <div class="col-md-6 col-lg-4 mb-4">
@@ -297,12 +305,16 @@
             <div class="card-body">
                 <h5 class="card-title">{{ job.title }}</h5>
                 <p class="card-text">
-                    {{ job.description[:120] }}{% if job.description|length > 120 %}...{% endif %}
+                    {% if job.description %}
+                        {{ job.description[:120] }}{% if job.description|length > 120 %}...{% endif %}
+                    {% else %}
+                        <span class="text-muted">Nenhuma descrição fornecida</span>
+                    {% endif %}
                 </p>
                 <div class="d-flex justify-content-between align-items-center mt-auto">
                     <span class="candidate-badge">
                         <i class="fas fa-users"></i>
-                        {{ job.candidates|length }}
+                        {{ job.candidates|length }} candidato{{ 's' if job.candidates|length != 1 else '' }}
                     </span>
                     <a href="{{ url_for('job_detail', job_id=job.id) }}" class="btn btn-details">
                         Ver Detalhes <i class="fas fa-arrow-right ms-1"></i>
@@ -314,16 +326,22 @@
                     <i class="fas fa-calendar-alt"></i>
                     Criada em {{ job.created_at.strftime('%d/%m/%Y') }}
                 </span>
+                {% if job.status %}
+                <span class="badge {% if job.status == 'active' %}bg-success{% else %}bg-secondary{% endif %} ms-2">
+                    {{ job.status|title }}
+                </span>
+                {% endif %}
             </div>
         </div>
     </div>
     {% endfor %}
 </div>
 {% else %}
+<!-- Estado Vazio -->
 <div class="empty-state">
     <i class="fas fa-briefcase"></i>
     <h3>Nenhuma vaga cadastrada</h3>
-    <p>Comece criando sua primeira vaga e encontre os melhores candidatos!</p>
+    <p>Comece criando sua primeira vaga e encontre os melhores candidatos com a ajuda da nossa IA!</p>
     <a href="{{ url_for('new_job') }}" class="btn">
         <i class="fas fa-plus me-2"></i>Criar Primeira Vaga
     </a>
