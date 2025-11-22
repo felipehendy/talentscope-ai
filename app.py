@@ -479,6 +479,61 @@ def process_bulk_pdf_analysis(job_id):
 
 # ==================== ROTAS DE AUTENTICAÇÃO ====================
 
+@app.route('/interviews/schedule/<int:candidate_id>', methods=['GET', 'POST'])
+@login_required
+def schedule_interview_from_candidate(candidate_id):
+    """Agendar entrevista a partir da página do candidato"""
+    candidate = Candidate.query.get_or_404(candidate_id)
+    
+    if request.method == 'POST':
+        try:
+            job_id = request.form.get('job_id')
+            title = request.form.get('title')
+            description = request.form.get('description', '')
+            start_time = request.form.get('start_time')
+            end_time = request.form.get('end_time')
+            meeting_link = request.form.get('meeting_link', '')
+            notes = request.form.get('notes', '')
+
+            if not all([job_id, title, start_time, end_time]):
+                flash('Todos os campos obrigatórios devem ser preenchidos!', 'danger')
+                return redirect(url_for('schedule_interview_from_candidate', candidate_id=candidate_id))
+
+            interview = Interview(
+                candidate_id=candidate_id,
+                job_id=int(job_id),
+                title=title,
+                description=description,
+                start_time=datetime.fromisoformat(start_time),
+                end_time=datetime.fromisoformat(end_time),
+                meeting_link=meeting_link,
+                notes=notes,
+                created_by=current_user.id
+            )
+            
+            db.session.add(interview)
+            db.session.commit()
+            
+            flash('Entrevista agendada com sucesso!', 'success')
+            return redirect(url_for('candidate_detail', candidate_id=candidate_id))
+            
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Erro ao agendar entrevista: {str(e)}', 'danger')
+    
+    # Para GET request, mostrar formulário pré-preenchido
+    jobs = Job.query.all()
+    
+    # Sugerir título baseado no candidato e vaga
+    suggested_title = f"Entrevista com {candidate.name}"
+    if candidate.job:
+        suggested_title += f" - {candidate.job.title}"
+    
+    return render_template('schedule_interview_from_candidate.html', 
+                         candidate=candidate, 
+                         jobs=jobs,
+                         suggested_title=suggested_title)
+
 @app.route('/jobs/<int:job_id>/reanalyze_all', methods=['POST'])
 @login_required
 def reanalyze_all_candidates_for_job(job_id):
