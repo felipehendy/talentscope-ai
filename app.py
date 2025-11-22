@@ -1166,11 +1166,17 @@ def reanalyze_all_candidates_for_job(job_id):
 
 # ==================== INICIALIZAÇÃO ====================
 
-# ✅ INICIALIZA O BANCO DE DADOS ANTES DO PRIMEIRO REQUEST
-@app.before_first_request
-def create_tables():
-    """Garante que as tabelas existam antes do primeiro request"""
-    init_database()
+## ==================== INICIALIZAÇÃO ====================
+
+def initialize_app():
+    """Inicializa a aplicação e o banco de dados"""
+    print("🚀 Inicializando aplicação...")
+    with app.app_context():
+        init_database()
+        print("✅ Aplicação inicializada com sucesso!")
+
+# ✅ INICIALIZA O BANCO DE DADOS AO INICIAR
+initialize_app()
 
 # ✅ ROTA DE DEBUG PARA VERIFICAR STATUS
 @app.route('/debug')
@@ -1185,7 +1191,7 @@ def debug_info():
 
 if __name__ == "__main__":
     # Inicializa o banco de dados
-    init_database()
+    initialize_app()
     
     # Cria as tabelas se estiver usando SQLite localmente
     if 'sqlite' in app.config['SQLALCHEMY_DATABASE_URI']:
