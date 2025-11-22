@@ -611,8 +611,14 @@ def login():
     if current_user.is_authenticated:
         return redirect(url_for('dashboard'))
         
+    # ✅ VERIFICA SE TEM EMAIL PRÉ-PREENCHIDO DA SESSION
+    prefill_email = session.pop('registered_email', None) if request.method == 'GET' else None
+    
+    # ✅ CONTA USUÁRIOS PARA MOSTRAR MENSAGENS CORRETAS
+    user_count = User.query.count()
+    
     if request.method == 'POST':
-        email = request.form.get('email')
+        email = request.form.get('email')  # ✅ AGORA É EMAIL
         password = request.form.get('password')
         
         user = User.query.filter_by(email=email).first()
@@ -624,25 +630,17 @@ def login():
         else:
             flash('Email ou senha inválidos.', 'danger')
             
-    return render_template('login.html')
-
-from flask import session
+    return render_template('login.html', 
+                         prefill_email=prefill_email,
+                         user_count=user_count)  # ✅ PASSA user_count PARA O TEMPLATE
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
-    # ... código anterior igual ...
+    # ✅ CORREÇÃO: Definir user_count no início da função
+    user_count = User.query.count()
     
-    if request.method == 'POST':
-        # ... código de criação do usuário ...
-        
-        # ✅ SALVA O EMAIL NA SESSION PARA PRÉ-PREENCHER O LOGIN
-        session['registered_email'] = email
-        
-        if is_first_user:
-            flash('Conta de administrador criada com sucesso! Faça login para continuar.', 'success')
-        else:
-            flash('Conta criada com sucesso! Faça login para continuar.', 'success')
-        
+    if user_count > 0 and not current_user.is_authenticated:
+        flash('Registro desabilitado. Faça login ou contate o administrador.', 'warning')
         return redirect(url_for('login'))
     
     if current_user.is_authenticated and not current_user.is_admin and user_count > 0:
@@ -676,6 +674,9 @@ def register():
         )
         db.session.add(user)
         db.session.commit()
+        
+        # ✅ SALVA O EMAIL NA SESSION PARA PRÉ-PREENCHER O LOGIN
+        session['registered_email'] = email
         
         if is_first_user:
             flash('Conta de administrador criada com sucesso! Faça login para continuar.', 'success')

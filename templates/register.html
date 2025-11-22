@@ -4,7 +4,7 @@
 
 {% block content %}
 <div class="login-container">
-    <!-- Lado Esquerdo (Marca) - Opcional, se você quiser manter o layout de duas colunas -->
+    <!-- Lado Esquerdo (Marca) -->
     <div class="brand-side">
         <div class="brand-logo-container">
             <img src="{{ url_for('static', filename='Marca.png') }}" alt="Logo TalentScope AI">
@@ -24,29 +24,54 @@ para Recrutamento</p>
         </div>
 
         <div class="form-header" style="text-align: center;">
-            <h2>Crie sua conta</h2>
-            <p>Junte-se à TalentScope AI e comece a recrutar com inteligência.</p>
+            <h2>
+                {% if is_first_user %}
+                    Criar Conta de Administrador
+                {% else %}
+                    Criar Nova Conta
+                {% endif %}
+            </h2>
+            <p>
+                {% if is_first_user %}
+                    Primeiro acesso ao sistema - Configure sua conta de administrador
+                {% else %}
+                    Preencha os dados para criar sua conta
+                {% endif %}
+            </p>
         </div>
         
-        <!-- Exibição de Mensagens de Erro (Flash) -->
+        <!-- Exibição de Mensagens Flash -->
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 {% for category, message in messages %}
-                    {% if category == 'danger' or category == 'success' %}
-                        <div class="alert-{{ category }}">
+                    {% if category == 'danger' %}
+                        <div class="alert-danger">
                             <i class="fas fa-exclamation-triangle"></i> {{ message }}
+                        </div>
+                    {% elif category == 'success' %}
+                        <div class="alert-success">
+                            <i class="fas fa-check-circle"></i> {{ message }}
                         </div>
                     {% endif %}
                 {% endfor %}
             {% endif %}
         {% endwith %}
 
+        <!-- Aviso de Administrador para Primeiro Usuário -->
+        {% if is_first_user %}
+        <div class="admin-notice">
+            <i class="fas fa-crown"></i> 
+            <strong>Conta de Administrador:</strong> Esta será a primeira conta do sistema com acesso total.
+        </div>
+        {% endif %}
+
         <!-- Formulário de Registro -->
         <form method="POST" action="{{ url_for('register') }}">
             <div class="form-group">
-                <label for="username" class="form-label">Usuário</label>
+                <label for="username" class="form-label">Nome de Usuário</label>
                 <div class="input-icon">
-                    <input type="text" id="username" name="username" class="form-control" placeholder="Escolha um nome de usuário" required>
+                    <input type="text" id="username" name="username" class="form-control" 
+                           placeholder="Escolha um nome de usuário" required>
                     <i class="fas fa-user"></i>
                 </div>
             </div>
@@ -54,7 +79,8 @@ para Recrutamento</p>
             <div class="form-group">
                 <label for="email" class="form-label">E-mail</label>
                 <div class="input-icon">
-                    <input type="email" id="email" name="email" class="form-control" placeholder="Seu melhor e-mail" required>
+                    <input type="email" id="email" name="email" class="form-control" 
+                           placeholder="seu@email.com" required>
                     <i class="fas fa-envelope"></i>
                 </div>
             </div>
@@ -62,13 +88,20 @@ para Recrutamento</p>
             <div class="form-group">
                 <label for="password" class="form-label">Senha</label>
                 <div class="input-icon">
-                    <input type="password" id="password" name="password" class="form-control" placeholder="••••••••" required>
+                    <input type="password" id="password" name="password" class="form-control" 
+                           placeholder="••••••••" required minlength="6">
                     <i class="fas fa-lock"></i>
                 </div>
+                <small class="text-muted">Mínimo 6 caracteres</small>
             </div>
 
-            <button type="submit" class="btn-submit">
-                <i class="fas fa-user-plus"></i> Registrar
+            <button type="submit" class="btn-submit" style="background: linear-gradient(135deg, var(--d1000-green), #449d44);">
+                <i class="fas fa-user-plus"></i> 
+                {% if is_first_user %}
+                    Criar Conta de Administrador
+                {% else %}
+                    Criar Conta
+                {% endif %}
             </button>
         </form>
 
@@ -206,14 +239,15 @@ para Recrutamento</p>
     .form-control { width: 100%; padding: 0.875rem 1rem 0.875rem 3rem; border: 1px solid #d1d5db; border-radius: 8px; font-size: 0.9rem; transition: all 0.2s ease; }
     .form-control:focus { outline: none; border-color: var(--d1000-blue); box-shadow: 0 0 0 3px rgba(2, 117, 216, 0.1); }
     .form-control:focus ~ i { color: var(--d1000-blue); }
-    .btn-submit { width: 100%; padding: 1rem; border: none; border-radius: 8px; background: linear-gradient(135deg, var(--d1000-blue), #0056b3); color: white; font-size: 1rem; font-weight: 600; cursor: pointer; transition: all 0.3s ease; box-shadow: 0 4px 12px rgba(2, 117, 216, 0.3); display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
-    .btn-submit:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(2, 117, 216, 0.4); }
+    .btn-submit { width: 100%; padding: 1rem; border: none; border-radius: 8px; color: white; font-size: 1rem; font-weight: 600; cursor: pointer; transition: all 0.3s ease; box-shadow: 0 4px 12px rgba(92, 184, 92, 0.3); display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
+    .btn-submit:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(92, 184, 92, 0.4); }
     .form-footer { margin-top: 1.5rem; text-align: center; font-size: 0.875rem; }
     .form-footer a { color: var(--d1000-blue); text-decoration: none; font-weight: 600; }
     .form-footer a:hover { text-decoration: underline; }
     .alert-danger { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; border-radius: 8px; padding: 1rem; margin-bottom: 1.5rem; font-size: 0.9rem; }
     .alert-success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; border-radius: 8px; padding: 1rem; margin-bottom: 1.5rem; font-size: 0.9rem; }
-    .default-credentials { background: #fff3cd; border: 1px solid #ffeeba; border-radius: 8px; padding: 1rem; margin-top: 1.5rem; font-size: 0.9rem; }
+    .admin-notice { background: #fff3cd; border: 1px solid #ffeeba; border-radius: 8px; padding: 1rem; margin-bottom: 1.5rem; font-size: 0.9rem; color: #856404; }
+    .text-muted { color: #6c757d !important; font-size: 0.8rem; }
 
     /* Responsividade */
     @media (max-width: 900px) {
@@ -223,4 +257,33 @@ para Recrutamento</p>
         .form-side { padding: 2rem; }
     }
 </style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Focar no primeiro campo
+        document.getElementById('username').focus();
+        
+        // Validação básica
+        const form = document.querySelector('form');
+        form.addEventListener('submit', function(e) {
+            const username = document.getElementById('username').value;
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            
+            if (!username || !email || !password) {
+                e.preventDefault();
+                alert('Por favor, preencha todos os campos.');
+                return;
+            }
+            
+            if (password.length < 6) {
+                e.preventDefault();
+                alert('A senha deve ter pelo menos 6 caracteres.');
+                return;
+            }
+        });
+    });
+</script>
 {% endblock %}
