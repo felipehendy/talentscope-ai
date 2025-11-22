@@ -106,12 +106,12 @@
         /* Lado Direito */
         .form-side {
             flex: 1;
-            padding: 2rem 3rem; /* Ajustado padding vertical */
+            padding: 2rem 3rem;
             display: flex;
             flex-direction: column;
             justify-content: center;
             background: #fff;
-            overflow-y: auto; /* Permite rolagem se o conteúdo for grande */
+            overflow-y: auto;
         }
         
         /* Estilo para o header do agente */
@@ -120,7 +120,7 @@
             margin-bottom: 1rem;
         }
         .agent-header img {
-            max-width: 150px; /* Tamanho da imagem do agente */
+            max-width: 150px;
             height: auto;
             border-radius: 50%;
             box-shadow: 0 5px 20px rgba(0,0,0,0.1);
@@ -128,7 +128,7 @@
 
         .form-header h2 { font-size: 1.75rem; color: var(--d1000-dark); margin-bottom: 0.5rem; font-weight: 700; }
         .form-header p { color: #6b7280; font-size: 0.9rem; }
-        .form-group { margin-bottom: 1.2rem; } /* Espaçamento ajustado */
+        .form-group { margin-bottom: 1.2rem; }
         .form-label { display: block; margin-bottom: 0.5rem; font-weight: 600; color: var(--d1000-dark); font-size: 0.875rem; }
         .input-icon { position: relative; }
         .input-icon i { position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: #9ca3af; transition: color 0.2s ease; }
@@ -142,6 +142,7 @@
         .form-footer a:hover { text-decoration: underline; }
         .alert-danger { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; border-radius: 8px; padding: 1rem; margin-bottom: 1.5rem; font-size: 0.9rem; }
         .alert-success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; border-radius: 8px; padding: 1rem; margin-bottom: 1.5rem; font-size: 0.9rem; }
+        .alert-info { background-color: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; border-radius: 8px; padding: 1rem; margin-bottom: 1.5rem; font-size: 0.9rem; }
         .default-credentials { background: #fff3cd; border: 1px solid #ffeeba; border-radius: 8px; padding: 1rem; margin-top: 1.5rem; font-size: 0.9rem; }
 
         /* Responsividade */
@@ -164,8 +165,7 @@
         <!-- Lado Esquerdo (Marca) -->
         <div class="brand-side">
             <div class="brand-logo-container">
-                <!-- Use sua própria imagem de logo aqui -->
-                <img src="{{ url_for('static', filename='Marca.png') }}" alt="Logo TalentScope AI">
+                <img src="{{ url_for('static', filename='Marca.png') }}" alt="Logo TalentScope AI" onerror="this.style.display='none'">
             </div>
             <div class="brand-text-container">
                 <p class="slogan">Inteligência Artificial  
@@ -177,9 +177,9 @@ para Recrutamento</p>
         <!-- Lado Direito (Formulário) -->
         <div class="form-side">
             
-            <!-- ▼▼▼ IMAGEM DO AGENTE ADICIONADA AQUI ▼▼▼ -->
+            <!-- Imagem do Agente -->
             <div class="agent-header">
-                <img src="{{ url_for('static', filename='agente.png') }}" alt="Agente TalentScope">
+                <img src="{{ url_for('static', filename='agente.png') }}" alt="Agente TalentScope" onerror="this.style.display='none'">
             </div>
 
             <div class="form-header" style="text-align: center;">
@@ -198,6 +198,14 @@ para Recrutamento</p>
                         {% elif category == 'success' %}
                             <div class="alert-success">
                                 <i class="fas fa-check-circle"></i> {{ message }}
+                            </div>
+                        {% elif category == 'info' %}
+                            <div class="alert-info">
+                                <i class="fas fa-info-circle"></i> {{ message }}
+                            </div>
+                        {% else %}
+                            <div class="alert-info">
+                                <i class="fas fa-info-circle"></i> {{ message }}
                             </div>
                         {% endif %}
                     {% endfor %}
@@ -239,11 +247,20 @@ para Recrutamento</p>
             {% endif %}
 
             <div class="form-footer">
-                <!-- Mostrar link para registro apenas se não houver usuários -->
+                <!-- ✅ CORREÇÃO: Sempre mostra o link, a lógica de controle fica na rota -->
+                <p>Não tem uma conta? 
+                    <a href="{{ url_for('register') }}" class="text-decoration-none">
+                        Solicitar acesso
+                    </a>
+                </p>
+                
+                <!-- ✅ LINK TEMPORÁRIO PARA CRIAR USUÁRIO (remover depois) -->
                 {% if user_count == 0 %}
-                    <p>Primeiro acesso? <a href="{{ url_for('register') }}">Crie sua conta de administrador</a></p>
-                {% else %}
-                    <p>Não tem uma conta? <a href="{{ url_for('register') }}">Solicitar acesso</a></p>
+                <p style="margin-top: 0.5rem; font-size: 0.8rem;">
+                    <a href="/create-first-user" style="color: var(--d1000-green);">
+                        <i class="fas fa-wrench"></i> Criar usuário admin (temporário)
+                    </a>
+                </p>
                 {% endif %}
             </div>
         </div>
@@ -268,6 +285,13 @@ para Recrutamento</p>
                     e.preventDefault();
                     alert('Por favor, preencha todos os campos.');
                 }
+            });
+
+            // Tratamento de erro para imagens
+            document.querySelectorAll('img').forEach(img => {
+                img.addEventListener('error', function() {
+                    this.style.display = 'none';
+                });
             });
         });
     </script>

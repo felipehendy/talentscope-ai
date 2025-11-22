@@ -14,7 +14,7 @@ from flask_login import LoginManager, UserMixin, login_user, login_required, log
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from flask_migrate import Migrate
-import pandas as pd 
+#import pandas as pd #
 from ai_analyzer import AIAnalyzer
 import json
 from sqlalchemy import text, create_engine
@@ -1050,23 +1050,17 @@ def export_candidates(job_id):
         flash('Nenhum candidato para exportar.', 'warning')
         return redirect(url_for('job_detail', job_id=job_id))
 
-    data = []
-    for candidate in candidates:
-        data.append({
-            'Nome': candidate.name,
-            'Email': candidate.email,
-            'Telefone': candidate.phone,
-            'LinkedIn': candidate.linkedin_url or ''
-        })
-        
-    df = pd.DataFrame(data)
-    
+    # ✅ EXPORTAÇÃO SIMPLES SEM PANDAS
     output = io.StringIO()
-    df.to_csv(output, index=False, encoding='utf-8-sig')
+    output.write("Nome,Email,Telefone,LinkedIn\n")
+    
+    for candidate in candidates:
+        output.write(f'"{candidate.name}","{candidate.email}","{candidate.phone}","{candidate.linkedin_url or ""}"\n')
+    
     output.seek(0)
     
     return send_file(
-        io.BytesIO(output.getvalue().encode('utf-8')),
+        io.BytesIO(output.getvalue().encode('utf-8-sig')),
         mimetype='text/csv',
         as_attachment=True,
         download_name=f'candidatos_{job.title.replace(" ", "_")}.csv'
