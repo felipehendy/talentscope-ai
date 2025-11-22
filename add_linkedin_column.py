@@ -1,6 +1,6 @@
 """
-Script para adicionar coluna linkedin_url na tabela candidate
-Execute com: python add_linkedin_column.py
+Script para adicionar coluna linkedin_url
+Execute no Shell do Render: python add_linkedin_column.py
 """
 import os
 from app import app, db
@@ -9,7 +9,7 @@ from sqlalchemy import text
 def add_linkedin_column():
     with app.app_context():
         try:
-            # Verificar se a coluna já existe
+            # Verificar se existe
             result = db.session.execute(text("""
                 SELECT column_name 
                 FROM information_schema.columns 
@@ -20,10 +20,10 @@ def add_linkedin_column():
                 print("✅ Coluna linkedin_url já existe")
                 return
             
-            # Adicionar a coluna
+            # Adicionar
             db.session.execute(text("""
                 ALTER TABLE candidate 
-                ADD COLUMN linkedin_url VARCHAR(500) NULL
+                ADD COLUMN linkedin_url VARCHAR(500)
             """))
             
             db.session.commit()

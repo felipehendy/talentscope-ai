@@ -154,7 +154,7 @@
                 <i class="fas fa-user-plus me-2"></i>Adicionar Candidato
             </a>
             <!-- 🔥 BOTÃO DE REANALISE EM MASSA -->
-            <form method="POST" action="{{ url_for('reanalyze_all_candidates', job_id=job.id) }}" style="display: inline;">
+            <form method="POST" action="{{ url_for('reanalyze_candidate', candidate_id=candidate.id) }}" style="display: inline;">
                 <button type="submit" class="btn btn-reanalyze-all">
                     <i class="fas fa-robot me-2"></i>Reanalisar Todos
                 </button>
