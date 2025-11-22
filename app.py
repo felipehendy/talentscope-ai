@@ -14,9 +14,10 @@ import pandas as pd
 from ai_analyzer import AIAnalyzer
 import json
 from urllib.parse import quote
-from sqlalchemy import text
+from sqlalchemy import text, create_engine
+from sqlalchemy.exc import SQLAlchemyError
 
-# Configuração
+# --- Configuração ---
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'sua-chave-secreta-super-segura-123')
 
@@ -42,6 +43,60 @@ login_manager.login_view = 'login'
 # ✅ CONFIGURAÇÃO CORRETA - Apenas AIAnalyzer
 ai_analyzer = AIAnalyzer()
 print(f"🔧 Provider configurado: {ai_analyzer.get_current_provider()}")
+
+# ==================== FUNÇÃO DE MIGRAÇÃO AUTOMÁTICA ====================
+
+def run_auto_migration(app):
+    """
+    Executa a migração para adicionar a coluna linkedin_url na inicialização.
+    Esta é uma solução de emergência para ambientes sem acesso fácil ao shell de migração.
+    """
+    with app.app_context():
+        engine = create_engine(app.config['SQLALCHEMY_DATABASE_URI'])
+        
+        TABLE_NAME = "candidate"
+        COLUMN_NAME = "linkedin_url"
+        COLUMN_TYPE = "VARCHAR(500)" # Usando 500 para ser consistente com o modelo
+
+        # Comando SQL para adicionar a coluna, se ela ainda não existir
+        MIGRATION_SQL = text(f"""
+            ALTER TABLE {TABLE_NAME}
+            ADD COLUMN {COLUMN_NAME} {COLUMN_TYPE}
+            DEFAULT NULL;
+        """)
+
+        # Comando SQL para verificar se a coluna já existe
+        CHECK_SQL = text(f"""
+            SELECT 1
+            FROM information_schema.columns
+            WHERE table_name = '{TABLE_NAME}'
+            AND column_name = '{COLUMN_NAME}';
+        """)
+
+        try:
+            with engine.connect() as connection:
+                # 1. Verifica se a coluna já existe
+                result = connection.execute(CHECK_SQL).fetchone()
+                
+                if result:
+                    print(f"✅ Migração: Coluna '{COLUMN_NAME}' já existe. Nenhuma ação necessária.")
+                    return
+
+                # 2. Executa o comando ALTER TABLE
+                connection.execute(MIGRATION_SQL)
+                
+                # 3. Confirma a transação
+                connection.commit()
+                print(f"🎉 Migração: Coluna '{COLUMN_NAME}' adicionada com sucesso!")
+
+        except SQLAlchemyError as e:
+            print(f"❌ ERRO FATAL na Migração Automática: {e}")
+            print("A aplicação pode falhar se a coluna for necessária. Verifique a conexão com o DB.")
+        except Exception as e:
+            print(f"❌ Ocorreu um erro inesperado na Migração: {e}")
+
+# ==================== FIM FUNÇÃO DE MIGRAÇÃO AUTOMÁTICA ====================
+
 
 # ==================== FILTRO WHATSAPP ====================
 @app.template_filter('whatsapp_link')
@@ -278,29 +333,23 @@ def extract_city_state_from_text(text):
         return "Erro na extração", "ER"
 
 def estimate_experience(text):
-    """Estima anos de experiência baseado no texto"""
+    """Estima a experiência do candidato"""
     if not text:
         return "Não informada"
     
     try:
         text_lower = text.lower()
         
-        exp_patterns = [
-            r'(\d+)[\s\-]+anos?[\s\-]+(?:de\s+)?experiência',
-            r'experiência[\s\-]+(?:de\s+)?(\d+)[\s\-]+anos?',
-            r'(\d+)[\s\-]+anos?[\s\-]+(?:na\s+área|em\s+ti|em\s+tecnologia|na\s+profissão)',
-        ]
-        
-        for pattern in exp_patterns:
-            match = re.search(pattern, text_lower)
-            if match:
-                years = int(match.group(1))
-                if years <= 2:
-                    return f"{years} ano" + ("s" if years > 1 else "")
-                elif years <= 5:
-                    return f"{years} anos (Pleno)"
-                else:
-                    return f"{years} anos (Sênior)"
+        # 1. Procura por anos de experiência (ex: 5 anos de experiência)
+        match = re.search(r'(\d+)\s+(?:anos|ano)\s+(?:de\s+)?experi[êe]ncia', text_lower)
+        if match:
+            years = int(match.group(1))
+            if years < 3:
+                return f"{years} anos (Júnior)"
+            elif years < 8:
+                return f"{years} anos (Pleno)"
+            else:
+                return f"{years} anos (Sênior)"
         
         seniority_keywords = {
             'sênior': '8+ anos (Sênior)',
@@ -398,101 +447,60 @@ def analyze_candidate_with_ai(resume_text, job_description, job_requirements):
         return {
             "score": 50,
             "match_percentage": 50,
-            "strengths": ["Erro na análise"],
-            "weaknesses": [f"Detalhes: {str(e)}"],
-            "recommendation": "Revisar manualmente",
-            "summary": f"Erro na análise: {str(e)}"
+            "strengths": ['Erro na análise de IA'],
+            "weaknesses": ['Erro na análise de IA'],
+            "recommendation": 'Erro na análise de IA',
+            "summary": f'Erro ao processar com IA: {str(e)}'
         }
 
 def process_bulk_pdf_analysis(job_id):
-    """Processa análise de IA para TODOS os candidatos da vaga (com PDFs)"""
-    try:
-        job = Job.query.get(job_id)
-        candidates = Candidate.query.filter_by(job_id=job_id).all()
+    """Processa a análise de IA para candidatos pendentes de uma vaga"""
+    job = Job.query.get(job_id)
+    if not job:
+        return
         
-        if not candidates:
-            return
-        
-        print(f"🔍 Iniciando análise em massa para {len(candidates)} currículos PDF...")
-        
-        for candidate in candidates:
-            try:
-                if not candidate.resume_text:
-                    print(f"⚠️ Candidato {candidate.name} sem texto de currículo")
-                    continue
-                
-                # Analisar com IA
-                ai_result = analyze_candidate_with_ai(candidate.resume_text, job.description, job.requirements)
-                
-                # Atualizar candidato com análise completa
-                candidate.ai_score = ai_result['score']
-                candidate.ai_analysis = json.dumps(ai_result)
-                
-                # Extrair telefone se não tiver
-                if not candidate.phone:
-                    phone = extract_phone_from_text(candidate.resume_text)
-                    if phone:
-                        candidate.phone = phone
-                
-                # ✅ Extrair LinkedIn se não tiver
-                if not candidate.linkedin_url:
-                    linkedin = extract_linkedin_from_text(candidate.resume_text)
-                    if linkedin:
-                        candidate.linkedin_url = linkedin
-                        print(f"🔗 LinkedIn extraído: {linkedin}")
-                
-                print(f"✅ Analisado: {candidate.name} - Score: {ai_result['score']}")
-                
-                db.session.commit()
-                
-            except Exception as e:
-                print(f"❌ Erro ao analisar {candidate.name}: {str(e)}")
-                db.session.rollback()
-                continue
-        
-        print("🎯 Análise em massa de PDFs concluída!")
-        
-    except Exception as e:
-        print(f"❌ Erro no processamento em massa: {str(e)}")
-        db.session.rollback()
+    candidates = Candidate.query.filter_by(job_id=job_id, status='pending').all()
+    
+    for candidate in candidates:
+        try:
+            ai_result = analyze_candidate_with_ai(candidate.resume_text, job.description, job.requirements)
+            
+            candidate.ai_score = ai_result['score']
+            candidate.ai_analysis = json.dumps(ai_result)
+            candidate.status = 'analyzed'
+            
+            db.session.commit()
+            
+        except Exception as e:
+            print(f"❌ Erro ao analisar candidato {candidate.id}: {e}")
+            db.session.rollback()
 
-# ==================== ROTAS ====================
+# ==================== ROTAS DE AUTENTICAÇÃO ====================
 
 @app.route('/')
 def index():
     if current_user.is_authenticated:
         return redirect(url_for('dashboard'))
-    
-    user_count = User.query.count()
-    
-    if user_count == 0:
-        flash('Bem-vindo! Crie sua conta para começar.', 'info')
-        return redirect(url_for('register'))
-    else:
-        return redirect(url_for('login'))
+    return redirect(url_for('login'))
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
         return redirect(url_for('dashboard'))
-    
-    if User.query.count() == 0:
-        flash('Nenhum usuário cadastrado. Crie sua conta primeiro.', 'warning')
-        return redirect(url_for('register'))
-    
+        
     if request.method == 'POST':
-        username = request.form.get('username')
+        email = request.form.get('email')
         password = request.form.get('password')
         
-        user = User.query.filter_by(username=username).first()
+        user = User.query.filter_by(email=email).first()
         
         if user and check_password_hash(user.password_hash, password):
             login_user(user)
             flash('Login realizado com sucesso!', 'success')
             return redirect(url_for('dashboard'))
         else:
-            flash('Usuário ou senha inválidos!', 'danger')
-    
+            flash('Email ou senha inválidos.', 'danger')
+            
     return render_template('login.html')
 
 @app.route('/register', methods=['GET', 'POST'])
@@ -553,6 +561,8 @@ def logout():
     flash('Logout realizado com sucesso!', 'info')
     return redirect(url_for('login'))
 
+# ==================== ROTAS PRINCIPAIS ====================
+
 @app.route('/dashboard')
 @login_required
 def dashboard():
@@ -597,8 +607,12 @@ def jobs():
         
         for job in all_jobs:
             try:
+                # A query de contagem é segura, mas se o erro for de schema, 
+                # a migração automática na inicialização deve ter resolvido.
                 job.candidate_count = db.session.query(Candidate.id).filter_by(job_id=job.id).count()
             except Exception as e:
+                # Mantendo o tratamento de erro local para debug
+                print(f"⚠️ Erro ao contar candidatos para a vaga {job.id}: {str(e)}")
                 job.candidate_count = 0
         
         return render_template('jobs.html', jobs=all_jobs)
@@ -1001,106 +1015,24 @@ def new_interview():
                              jobs=jobs)
                              
     except Exception as e:
-        flash('Erro interno do servidor. Tente novamente.', 'danger')
-        return redirect(url_for('calendar'))
-
-@app.route('/interviews/<int:interview_id>/delete', methods=['POST'])
-@login_required
-def delete_interview(interview_id):
-    interview = Interview.query.get_or_404(interview_id)
-    interview.status = 'cancelled'
-    db.session.commit()
-    
-    flash('Entrevista cancelada!', 'success')
-    return redirect(url_for('calendar'))
-
-@app.route('/interviews/<int:interview_id>/send-whatsapp')
-@login_required
-def send_interview_whatsapp(interview_id):
-    interview = Interview.query.get_or_404(interview_id)
-    candidate = interview.candidate
-    
-    if not candidate.phone:
-        flash('Candidato não possui telefone cadastrado!', 'danger')
-        return redirect(url_for('calendar'))
-    
-    start_time = interview.start_time
-    formatted_date = start_time.strftime('%d/%m/%Y')
-    formatted_time = start_time.strftime('%H:%M')
-    
-    message = f"""Olá {candidate.name}! 
-
-🎯 *Convite para Entrevista*
-
-📅 *Data:* {formatted_date}
-⏰ *Horário:* {formatted_time}
-💼 *Vaga:* {interview.job.title}
-
-"""
-    
-    if interview.meeting_link:
-        message += f"🔗 *Link da Reunião:* {interview.meeting_link}\n\n"
-    
-    message += f"""Por favor, confirme sua disponibilidade.
-
-Atenciosamente,
-Equipe TalentScope AI"""
-    
-    encoded_message = quote(message)
-    
-    interview.whatsapp_sent = True
-    interview.whatsapp_sent_at = datetime.utcnow()
-    db.session.commit()
-    
-    base_url = whatsapp_link(candidate.phone)
-    whatsapp_url = f"{base_url}&text={encoded_message}"
-    
-    flash('Convite preparado para envio no WhatsApp!', 'success')
-    return redirect(whatsapp_url)
-
-@app.route('/metrics')
-@login_required
-def metrics():
-    total_candidates = Candidate.query.count()
-    total_interviews = 0
-    
-    candidates_with_score = Candidate.query.filter(Candidate.ai_score.isnot(None)).all()
-    avg_score = sum(c.ai_score for c in candidates_with_score) / len(candidates_with_score) if candidates_with_score else 0
-    
-    jobs = Job.query.all()
-    
-    return render_template('metrics.html',
-                         total_candidates=total_candidates,
-                         total_interviews=total_interviews,
-                         avg_score=avg_score,
-                         jobs=jobs)
+        print(f"❌ Erro na rota new_interview: {e}")
+        flash(f'Erro interno ao carregar dados: {str(e)}', 'danger')
+        candidates = Candidate.query.all()
+        jobs = Job.query.all()
+        return render_template('new_interview.html', 
+                             candidates=candidates, 
+                             jobs=jobs)
 
 # ==================== INICIALIZAÇÃO ====================
-with app.app_context():
-    try:
-        db.create_all()
-        print("✅ Tabelas criadas com sucesso!")
-        
-        try:
-            inspector = db.inspect(db.engine)
-            existing_columns = [col['name'] for col in inspector.get_columns('candidate')]
-            
-            if 'resume_text' not in existing_columns:
-                db.engine.execute(text("ALTER TABLE candidate ADD COLUMN resume_text TEXT"))
-                print("✅ Coluna resume_text adicionada!")
-            
-            if 'linkedin_url' not in existing_columns:
-                db.engine.execute(text("ALTER TABLE candidate ADD COLUMN linkedin_url VARCHAR(500)"))
-                print("✅ Coluna linkedin_url adicionada!")
-                
-        except Exception as e:
-            print(f"⚠️ Aviso nas colunas: {e}")
-        
-        print(f"📊 Total de usuários no banco: {User.query.count()}")
-        print("✅ Banco de dados inicializado!")
-    except Exception as e:
-        print(f"⚠️ Aviso ao inicializar banco: {e}")
 
-if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port, debug=False)
+# ⚠️ Executa a migração antes de iniciar o servidor
+# Isso garante que a coluna 'linkedin_url' exista antes que o Gunicorn/Flask tente usá-la.
+run_auto_migration(app)
+
+if __name__ == "__main__":
+    # Cria as tabelas se estiver usando SQLite localmente e não houver migrações
+    if 'sqlite' in app.config['SQLALCHEMY_DATABASE_URI'] and not os.path.exists('migrations'):
+        with app.app_context():
+            db.create_all()
+            
+    app.run(debug=True)
