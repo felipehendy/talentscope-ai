@@ -45,23 +45,6 @@ app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
     'pool_recycle': 300,
     'pool_pre_ping': True
 }
-
-
-
-# ✅ CONFIGURAÇÃO CORRETA DO BANCO PARA RENDER
-def get_database_url():
-    """Configuração do PostgreSQL para Render com fallback para SQLite"""
-    database_url = os.getenv('DATABASE_URL')
-    if database_url:
-        if database_url.startswith('postgres://'):
-            database_url = database_url.replace('postgres://', 'postgresql://', 1)
-        return database_url
-    
-    # Fallback para SQLite local
-    return 'sqlite:///database.db'
-
-app.config['SQLALCHEMY_DATABASE_URI'] = get_database_url()
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 
@@ -522,6 +505,80 @@ def process_bulk_pdf_analysis(job_id):
 
 # ==================== ROTAS DE AUTENTICAÇÃO ====================
 
+# ✅ ROTA TEMPORÁRIA PARA CRIAR ADMIN RÁPIDO
+@app.route('/create-admin-now')
+def create_admin_now():
+    """Rota temporária para criar admin rapidamente"""
+    try:
+        # Verifica se já existe usuário
+        user_count = User.query.count()
+        
+        if user_count == 0:
+            user = User(
+                username='admin',
+                email='admin@talentscope.com',
+                password_hash=generate_password_hash('admin123'),
+                is_admin=True
+            )
+            db.session.add(user)
+            db.session.commit()
+            
+            return '''
+            <h1>✅ Usuário Admin Criado!</h1>
+            <p><strong>Email:</strong> admin@talentscope.com</p>
+            <p><strong>Senha:</strong> admin123</p>
+            <p><a href="/login" style="color: blue;">👉 Clique aqui para fazer LOGIN</a></p>
+            '''
+        else:
+            return f'''
+            <h1>⚠️ Já existem usuários</h1>
+            <p>Já existem {user_count} usuários no sistema.</p>
+            <p><a href="/login" style="color: blue;">👉 Ir para Login</a></p>
+            '''
+            
+    except Exception as e:
+        return f'''
+        <h1>❌ Erro ao criar usuário</h1>
+        <p>Erro: {str(e)}</p>
+        <p><a href="/debug" style="color: blue;">👉 Ver status do sistema</a></p>
+        '''
+
+# ✅ ROTA TEMPORÁRIA PARA CRIAR PRIMEIRO USUÁRIO
+@app.route('/create-first-user')
+def create_first_user():
+    """Rota temporária para criar o primeiro usuário"""
+    try:
+        user_count = User.query.count()
+        
+        if user_count == 0:
+            user = User(
+                username='admin',
+                email='admin@talentscope.com',
+                password_hash=generate_password_hash('admin123'),
+                is_admin=True
+            )
+            db.session.add(user)
+            db.session.commit()
+            return jsonify({
+                'success': True,
+                'message': 'Usuário admin criado!',
+                'credentials': {
+                    'email': 'admin@talentscope.com',
+                    'password': 'admin123'
+                }
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'message': 'Já existem usuários no sistema'
+            })
+            
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        })
+
 @app.route('/')
 def index():
     if current_user.is_authenticated:
@@ -569,59 +626,68 @@ def login():
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
-    # ✅ CORREÇÃO: Definir user_count no início da função
-    user_count = User.query.count()
-    
-    if user_count > 0 and not current_user.is_authenticated:
-        flash('Registro desabilitado. Faça login ou contate o administrador.', 'warning')
-        return redirect(url_for('login'))
-    
-    if current_user.is_authenticated and not current_user.is_admin and user_count > 0:
-        flash('Apenas administradores podem criar novos usuários.', 'warning')
+    """Rota de registro - permite acesso controlado"""
+    # Se já estiver logado, redireciona para dashboard
+    if current_user.is_authenticated:
         return redirect(url_for('dashboard'))
     
+    try:
+        # Conta usuários existentes
+        user_count = User.query.count()
+    except Exception as e:
+        print(f"⚠️ Erro ao verificar usuários: {e}")
+        user_count = 0
+    
+    # ✅ CORREÇÃO: Se já existem usuários, mostra página de solicitação
+    if user_count > 0:
+        if request.method == 'POST':
+            # Processa solicitação de acesso
+            name = request.form.get('name')
+            email = request.form.get('email')
+            company = request.form.get('company')
+            message = request.form.get('message')
+            
+            # Simula envio de solicitação
+            print(f"📧 Solicitação de acesso recebida: {name} - {email} - {company}")
+            flash('✅ Solicitação enviada! Entraremos em contato para liberar seu acesso.', 'success')
+            return redirect(url_for('login'))
+        
+        # Mostra formulário de solicitação de acesso
+        return render_template('request_access.html')
+    
+    # ✅ Se não há usuários, permite registro completo
     if request.method == 'POST':
         username = request.form.get('username')
         email = request.form.get('email')
         password = request.form.get('password')
         
-        if not username or not email or not password:
+        if not all([username, email, password]):
             flash('Todos os campos são obrigatórios!', 'danger')
-            return redirect(url_for('register'))
+            return render_template('register.html')
         
         if User.query.filter_by(username=username).first():
             flash('Usuário já existe!', 'danger')
-            return redirect(url_for('register'))
+            return render_template('register.html')
         
         if User.query.filter_by(email=email).first():
             flash('Email já cadastrado!', 'danger')
-            return redirect(url_for('register'))
-        
-        is_first_user = (user_count == 0)
+            return render_template('register.html')
         
         user = User(
             username=username,
             email=email,
             password_hash=generate_password_hash(password),
-            is_admin=is_first_user
+            is_admin=True  # Primeiro usuário sempre é admin
         )
+        
         db.session.add(user)
         db.session.commit()
         
-        # ✅ SALVA O EMAIL NA SESSION PARA PRÉ-PREENCHER O LOGIN
         session['registered_email'] = email
-        
-        if is_first_user:
-            flash('Conta de administrador criada com sucesso! Faça login para continuar.', 'success')
-        else:
-            flash('Conta criada com sucesso! Faça login para continuar.', 'success')
-        
-        # ✅ REDIRECIONA PARA LOGIN APÓS CADASTRO
+        flash('🎉 Conta de administrador criada com sucesso! Faça login para continuar.', 'success')
         return redirect(url_for('login'))
     
-    is_first_user = (user_count == 0)
-    
-    return render_template('register.html', is_first_user=is_first_user)
+    return render_template('register.html', is_first_user=True)
 
 @app.route('/logout')
 @login_required
@@ -1189,8 +1255,6 @@ def reanalyze_all_candidates_for_job(job_id):
     return redirect(url_for('job_detail', job_id=job_id))
 
 # ==================== INICIALIZAÇÃO ====================
-
-## ==================== INICIALIZAÇÃO ====================
 
 def initialize_app():
     """Inicializa a aplicação e o banco de dados"""
