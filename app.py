@@ -4,6 +4,7 @@ import re
 import pdfplumber
 import PyPDF2
 import time
+from urllib.parse import quote
 from sqlalchemy import inspect, text
 from datetime import datetime
 from flask import session
@@ -12,12 +13,10 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
-from datetime import datetime
 from flask_migrate import Migrate
 import pandas as pd 
 from ai_analyzer import AIAnalyzer
 import json
-from urllib.parse import quote
 from sqlalchemy import text, create_engine
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -25,12 +24,19 @@ from sqlalchemy.exc import SQLAlchemyError
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'sua-chave-secreta-super-segura-123')
 
-# Database - PostgreSQL em produção, SQLite local
-database_url = os.getenv('DATABASE_URL', 'sqlite:///database.db')
-if database_url.startswith('postgres://'):
-    database_url = database_url.replace('postgres://', 'postgresql://')
+# ✅ CONFIGURAÇÃO CORRETA DO BANCO PARA RENDER
+def get_database_url():
+    """Configuração do PostgreSQL para Render com fallback para SQLite"""
+    database_url = os.getenv('DATABASE_URL')
+    if database_url:
+        if database_url.startswith('postgres://'):
+            database_url = database_url.replace('postgres://', 'postgresql://', 1)
+        return database_url
+    
+    # Fallback para SQLite local
+    return 'sqlite:///database.db'
 
-app.config['SQLALCHEMY_DATABASE_URI'] = database_url
+app.config['SQLALCHEMY_DATABASE_URI'] = get_database_url()
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
@@ -48,46 +54,72 @@ login_manager.login_view = 'login'
 ai_analyzer = AIAnalyzer()
 print(f"🔧 Provider configurado: {ai_analyzer.get_current_provider()}")
 
-# ==================== FUNÇÃO DE MIGRAÇÃO AUTOMÁTICA ====================
+# ==================== INICIALIZAÇÃO DO BANCO ====================
 
-def run_auto_migration(app):
-    """
-    Executa a migração para adicionar a coluna linkedin_url na inicialização.
-    Versão compatível com SQLite.
-    """
+def init_database():
+    """Inicializa o banco de dados no Render"""
     with app.app_context():
         try:
-            # Para SQLite, verifica de forma diferente
-            engine = create_engine(app.config['SQLALCHEMY_DATABASE_URI'])
+            print("🔄 Inicializando banco de dados...")
             
-            # Verifica se a tabela candidate existe
-            inspector = inspect(engine)
-            if 'candidate' not in inspector.get_table_names():
-                print("📋 Tabela candidate não existe ainda. Será criada com db.create_all()")
-                return
+            # Verifica se as tabelas existem
+            inspector = inspect(db.engine)
+            existing_tables = inspector.get_table_names()
             
-            # Verifica se a coluna já existe (método compatível com SQLite)
-            columns = [col['name'] for col in inspector.get_columns('candidate')]
-            
-            if 'linkedin_url' in columns:
-                print(f"✅ Migração: Coluna 'linkedin_url' já existe. Nenhuma ação necessária.")
-                return
-
-            # Adiciona a coluna se não existir
-            print("🔄 Adicionando coluna 'linkedin_url' à tabela candidate...")
-            with engine.connect() as connection:
-                connection.execute(text("""
-                    ALTER TABLE candidate 
-                    ADD COLUMN linkedin_url VARCHAR(500) DEFAULT NULL
-                """))
-                connection.commit()
+            if not existing_tables:
+                print("🗃️ Criando todas as tabelas do banco de dados...")
+                db.create_all()
+                print("✅ Tabelas criadas com sucesso!")
+            else:
+                print("✅ Tabelas já existem no banco de dados")
                 
-            print("🎉 Migração: Coluna 'linkedin_url' adicionada com sucesso!")
-
+            # ✅ Executa migração para linkedin_url
+            run_auto_migration()
+                
         except Exception as e:
-            print(f"⚠️ Aviso na migração: {e}")
-            print("A coluna será criada quando as tabelas forem geradas.")
+            print(f"❌ Erro ao verificar/criar tabelas: {e}")
+            # Tenta criar as tabelas mesmo assim
+            try:
+                db.create_all()
+                print("✅ Tabelas criadas com sucesso após erro!")
+            except Exception as e2:
+                print(f"❌ Erro crítico ao criar tabelas: {e2}")
 
+def run_auto_migration():
+    """
+    Executa a migração para adicionar a coluna linkedin_url na inicialização.
+    """
+    try:
+        # Para SQLite, verifica de forma diferente
+        engine = create_engine(app.config['SQLALCHEMY_DATABASE_URI'])
+        
+        # Verifica se a tabela candidate existe
+        inspector = inspect(engine)
+        if 'candidate' not in inspector.get_table_names():
+            print("📋 Tabela candidate não existe ainda. Será criada com db.create_all()")
+            return
+        
+        # Verifica se a coluna já existe (método compatível com SQLite)
+        columns = [col['name'] for col in inspector.get_columns('candidate')]
+        
+        if 'linkedin_url' in columns:
+            print(f"✅ Migração: Coluna 'linkedin_url' já existe. Nenhuma ação necessária.")
+            return
+
+        # Adiciona a coluna se não existir
+        print("🔄 Adicionando coluna 'linkedin_url' à tabela candidate...")
+        with engine.connect() as connection:
+            connection.execute(text("""
+                ALTER TABLE candidate 
+                ADD COLUMN linkedin_url VARCHAR(500) DEFAULT NULL
+            """))
+            connection.commit()
+            
+        print("🎉 Migração: Coluna 'linkedin_url' adicionada com sucesso!")
+
+    except Exception as e:
+        print(f"⚠️ Aviso na migração: {e}")
+        print("A coluna será criada quando as tabelas forem geradas.")
 
 # ==================== FILTRO WHATSAPP ====================
 @app.template_filter('whatsapp_link')
@@ -111,28 +143,6 @@ def urlencode_filter(s):
     return quote(str(s))
 
 # ==================== MODELS ====================
-
-class Interview(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    candidate_id = db.Column(db.Integer, db.ForeignKey('candidate.id'), nullable=False)
-    job_id = db.Column(db.Integer, db.ForeignKey('job.id'), nullable=False)
-    title = db.Column(db.String(200), nullable=False)
-    description = db.Column(db.Text)
-    start_time = db.Column(db.DateTime, nullable=False)
-    end_time = db.Column(db.DateTime, nullable=False)
-    status = db.Column(db.String(20), default='scheduled')
-    meeting_link = db.Column(db.String(500))
-    notes = db.Column(db.Text)
-    created_by = db.Column(db.Integer, db.ForeignKey('user.id'))
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
-    # NOVO: Campos para controle WhatsApp
-    whatsapp_sent = db.Column(db.Boolean, default=False)
-    whatsapp_sent_at = db.Column(db.DateTime)
-    
-    candidate = db.relationship('Candidate', backref='interviews')
-    job = db.relationship('Job', backref='interviews')
-    user = db.relationship('User', backref='interviews')
 
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -165,6 +175,28 @@ class Candidate(db.Model):
     status = db.Column(db.String(20), default='pending')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     resume_text = db.Column(db.Text)
+
+class Interview(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    candidate_id = db.Column(db.Integer, db.ForeignKey('candidate.id'), nullable=False)
+    job_id = db.Column(db.Integer, db.ForeignKey('job.id'), nullable=False)
+    title = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text)
+    start_time = db.Column(db.DateTime, nullable=False)
+    end_time = db.Column(db.DateTime, nullable=False)
+    status = db.Column(db.String(20), default='scheduled')
+    meeting_link = db.Column(db.String(500))
+    notes = db.Column(db.Text)
+    created_by = db.Column(db.Integer, db.ForeignKey('user.id'))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # NOVO: Campos para controle WhatsApp
+    whatsapp_sent = db.Column(db.Boolean, default=False)
+    whatsapp_sent_at = db.Column(db.DateTime)
+    
+    candidate = db.relationship('Candidate', backref='interviews')
+    job = db.relationship('Job', backref='interviews')
+    user = db.relationship('User', backref='interviews')
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -208,7 +240,6 @@ def extract_text_from_pdf(file_path):
     
     # Método 1: pdfplumber (mais preciso)
     try:
-        import pdfplumber
         with pdfplumber.open(file_path) as pdf:
             for page in pdf.pages:
                 page_text = page.extract_text() or ""
@@ -220,7 +251,6 @@ def extract_text_from_pdf(file_path):
     
     # Método 2: PyPDF2 (fallback)
     try:
-        import PyPDF2
         with open(file_path, 'rb') as file:
             reader = PyPDF2.PdfReader(file)
             for page in reader.pages:
@@ -468,131 +498,27 @@ def process_bulk_pdf_analysis(job_id):
 
 # ==================== ROTAS DE AUTENTICAÇÃO ====================
 
-@app.route('/interviews/schedule/<int:candidate_id>', methods=['GET', 'POST'])
-@login_required
-def schedule_interview_from_candidate(candidate_id):
-    """Agendar entrevista a partir da página do candidato"""
-    candidate = Candidate.query.get_or_404(candidate_id)
-    
-    if request.method == 'POST':
-        try:
-            job_id = request.form.get('job_id')
-            title = request.form.get('title')
-            description = request.form.get('description', '')
-            start_time = request.form.get('start_time')
-            end_time = request.form.get('end_time')
-            meeting_link = request.form.get('meeting_link', '')
-            notes = request.form.get('notes', '')
-
-            if not all([job_id, title, start_time, end_time]):
-                flash('Todos os campos obrigatórios devem ser preenchidos!', 'danger')
-                return redirect(url_for('schedule_interview_from_candidate', candidate_id=candidate_id))
-
-            interview = Interview(
-                candidate_id=candidate_id,
-                job_id=int(job_id),
-                title=title,
-                description=description,
-                start_time=datetime.fromisoformat(start_time),
-                end_time=datetime.fromisoformat(end_time),
-                meeting_link=meeting_link,
-                notes=notes,
-                created_by=current_user.id
-            )
-            
-            db.session.add(interview)
-            db.session.commit()
-            
-            flash('Entrevista agendada com sucesso!', 'success')
-            return redirect(url_for('candidate_detail', candidate_id=candidate_id))
-            
-        except Exception as e:
-            db.session.rollback()
-            flash(f'Erro ao agendar entrevista: {str(e)}', 'danger')
-    
-    # Para GET request, mostrar formulário pré-preenchido
-    jobs = Job.query.all()
-    
-    # Sugerir título baseado no candidato e vaga
-    suggested_title = f"Entrevista com {candidate.name}"
-    if candidate.job:
-        suggested_title += f" - {candidate.job.title}"
-    
-    return render_template('schedule_interview_from_candidate.html', 
-                         candidate=candidate, 
-                         jobs=jobs,
-                         suggested_title=suggested_title)
-
-@app.route('/jobs/<int:job_id>/reanalyze_all', methods=['POST'])
-@login_required
-def reanalyze_all_candidates_for_job(job_id):
-    """Reanalisa todos os candidatos para uma vaga específica"""
-    try:
-        job = Job.query.get_or_404(job_id)
-        
-        # Verificar se o usuário tem permissão para esta vaga
-        if job.user_id != current_user.id:
-            flash('Acesso negado.', 'error')
-            return redirect(url_for('jobs'))
-        
-        candidates = Candidate.query.filter_by(job_id=job_id).all()
-        
-        if not candidates:
-            flash('Nenhum candidato encontrado para reanálise.', 'warning')
-            return redirect(url_for('job_detail', job_id=job_id))
-        
-        reanalyzed_count = 0
-        
-        for candidate in candidates:
-            try:
-                # ✅ CORRIGIDO: Parâmetros corretos
-                analysis_result = analyze_candidate_with_ai(
-                    candidate.resume_text, 
-                    job.description, 
-                    job.requirements
-                )
-                
-                # ✅ CORRIGIDO: Usar campos reais do modelo
-                if analysis_result and 'score' in analysis_result:
-                    candidate.ai_score = analysis_result.get('score', 0)
-                    candidate.ai_analysis = json.dumps(analysis_result)
-                    
-                    reanalyzed_count += 1
-                    
-                    # Pequena pausa para evitar rate limiting
-                    time.sleep(1)
-                    
-            except Exception as e:
-                print(f"Erro ao reanalisar candidato {candidate.id}: {str(e)}")
-                continue
-        
-        db.session.commit()
-        
-        if reanalyzed_count > 0:
-            flash(f'Reanálise concluída! {reanalyzed_count} candidatos foram reanalisados.', 'success')
-        else:
-            flash('Nenhum candidato pôde ser reanalisado.', 'warning')
-            
-    except Exception as e:
-        db.session.rollback()
-        flash(f'Erro durante a reanálise: {str(e)}', 'error')
-    
-    return redirect(url_for('job_detail', job_id=job_id))
-
 @app.route('/')
 def index():
     if current_user.is_authenticated:
         return redirect(url_for('dashboard'))
     
-    # ✅ Conta quantos usuários existem no sistema
-    user_count = User.query.count()
-    
-    if user_count == 0:
-        # ✅ Primeiro acesso: redireciona para registro
+    # ✅ Verifica se existe algum usuário no banco
+    try:
+        user_count = db.session.query(User).count()
+        
+        if user_count == 0:
+            # ✅ Primeiro acesso: redireciona para registro
+            flash('Bem-vindo! Crie a primeira conta de administrador.', 'info')
+            return redirect(url_for('register'))
+        else:
+            # ✅ Acessos subsequentes: redireciona para login
+            return redirect(url_for('login'))
+            
+    except Exception as e:
+        print(f"⚠️ Erro ao verificar usuários: {e}")
+        # Em caso de erro, permite o registro
         return redirect(url_for('register'))
-    else:
-        # ✅ Acessos subsequentes: redireciona para login
-        return redirect(url_for('login'))
     
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -602,11 +528,8 @@ def login():
     # ✅ VERIFICA SE TEM EMAIL PRÉ-PREENCHIDO DA SESSION
     prefill_email = session.pop('registered_email', None) if request.method == 'GET' else None
     
-    # ✅ CONTA USUÁRIOS PARA MOSTRAR MENSAGENS CORRETAS
-    user_count = User.query.count()
-    
     if request.method == 'POST':
-        email = request.form.get('email')  # ✅ AGORA É EMAIL
+        email = request.form.get('email')
         password = request.form.get('password')
         
         user = User.query.filter_by(email=email).first()
@@ -618,9 +541,7 @@ def login():
         else:
             flash('Email ou senha inválidos.', 'danger')
             
-    return render_template('login.html', 
-                         prefill_email=prefill_email,
-                         user_count=user_count)  # ✅ PASSA user_count PARA O TEMPLATE
+    return render_template('login.html', prefill_email=prefill_email)
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
@@ -731,11 +652,8 @@ def jobs():
         
         for job in all_jobs:
             try:
-                # A query de contagem é segura, mas se o erro for de schema, 
-                # a migração automática na inicialização deve ter resolvido.
                 job.candidate_count = db.session.query(Candidate.id).filter_by(job_id=job.id).count()
             except Exception as e:
-                # Mantendo o tratamento de erro local para debug
                 print(f"⚠️ Erro ao contar candidatos para a vaga {job.id}: {str(e)}")
                 job.candidate_count = 0
         
@@ -884,7 +802,7 @@ def new_candidate(job_id):
                 name=request.form.get('name'),
                 email=request.form.get('email'),
                 phone=request.form.get('phone'),
-                linkedin_url=linkedin_url or request.form.get('linkedin_url'),  # ✅ Prioriza extração automática
+                linkedin_url=linkedin_url or request.form.get('linkedin_url'),
                 resume_path=filepath,
                 resume_text=resume_text,
                 job_id=job_id,
@@ -1047,7 +965,7 @@ def candidate_space():
                 'education': extract_education(candidate.resume_text or ""),
                 'tech_score': candidate.ai_score or 0,
                 'phone': candidate.phone or "Não informado",
-                'linkedin_url': candidate.linkedin_url  # ✅ Incluir LinkedIn
+                'linkedin_url': candidate.linkedin_url
             }
             
             top_candidates.append(candidate_data)
@@ -1147,56 +1065,130 @@ def new_interview():
                              candidates=candidates, 
                              jobs=jobs)
 
-# ==================== INICIALIZAÇÃO ====================
+# ==================== ROTAS ADICIONAIS ====================
 
-# ⚠️ Executa a migração antes de iniciar o servidor
-# Isso garante que a coluna 'linkedin_url' exista antes que o Gunicorn/Flask tente usá-la.
-run_auto_migration(app)
-
-def initialize_database():
-    """Cria todas as tabelas se não existirem"""
-    with app.app_context():
+@app.route('/interviews/schedule/<int:candidate_id>', methods=['GET', 'POST'])
+@login_required
+def schedule_interview_from_candidate(candidate_id):
+    """Agendar entrevista a partir da página do candidato"""
+    candidate = Candidate.query.get_or_404(candidate_id)
+    
+    if request.method == 'POST':
         try:
-            # Verifica se a tabela user existe
-            from sqlalchemy import inspect
-            inspector = inspect(db.engine)
-            existing_tables = inspector.get_table_names()
+            job_id = request.form.get('job_id')
+            title = request.form.get('title')
+            description = request.form.get('description', '')
+            start_time = request.form.get('start_time')
+            end_time = request.form.get('end_time')
+            meeting_link = request.form.get('meeting_link', '')
+            notes = request.form.get('notes', '')
+
+            if not all([job_id, title, start_time, end_time]):
+                flash('Todos os campos obrigatórios devem ser preenchidos!', 'danger')
+                return redirect(url_for('schedule_interview_from_candidate', candidate_id=candidate_id))
+
+            interview = Interview(
+                candidate_id=candidate_id,
+                job_id=int(job_id),
+                title=title,
+                description=description,
+                start_time=datetime.fromisoformat(start_time),
+                end_time=datetime.fromisoformat(end_time),
+                meeting_link=meeting_link,
+                notes=notes,
+                created_by=current_user.id
+            )
             
-            if not existing_tables:
-                print("🗃️ Criando todas as tabelas do banco de dados...")
-                db.create_all()
-                print("✅ Tabelas criadas com sucesso!")
-            else:
-                print("✅ Tabelas já existem no banco de dados")
-                
+            db.session.add(interview)
+            db.session.commit()
+            
+            flash('Entrevista agendada com sucesso!', 'success')
+            return redirect(url_for('candidate_detail', candidate_id=candidate_id))
+            
         except Exception as e:
-            print(f"❌ Erro ao verificar/criar tabelas: {e}")
-            # Tenta criar as tabelas mesmo assim
+            db.session.rollback()
+            flash(f'Erro ao agendar entrevista: {str(e)}', 'danger')
+    
+    jobs = Job.query.all()
+    suggested_title = f"Entrevista com {candidate.name}"
+    if candidate.job:
+        suggested_title += f" - {candidate.job.title}"
+    
+    return render_template('schedule_interview_from_candidate.html', 
+                         candidate=candidate, 
+                         jobs=jobs,
+                         suggested_title=suggested_title)
+
+@app.route('/jobs/<int:job_id>/reanalyze_all', methods=['POST'])
+@login_required
+def reanalyze_all_candidates_for_job(job_id):
+    """Reanalisa todos os candidatos para uma vaga específica"""
+    try:
+        job = Job.query.get_or_404(job_id)
+        candidates = Candidate.query.filter_by(job_id=job_id).all()
+        
+        if not candidates:
+            flash('Nenhum candidato encontrado para reanálise.', 'warning')
+            return redirect(url_for('job_detail', job_id=job_id))
+        
+        reanalyzed_count = 0
+        
+        for candidate in candidates:
             try:
-                db.create_all()
-                print("✅ Tabelas criadas com sucesso!")
-            except Exception as e2:
-                print(f"❌ Erro crítico ao criar tabelas: {e2}")
+                analysis_result = analyze_candidate_with_ai(
+                    candidate.resume_text, 
+                    job.description, 
+                    job.requirements
+                )
+                
+                if analysis_result and 'score' in analysis_result:
+                    candidate.ai_score = analysis_result.get('score', 0)
+                    candidate.ai_analysis = json.dumps(analysis_result)
+                    reanalyzed_count += 1
+                    time.sleep(1)
+                    
+            except Exception as e:
+                print(f"Erro ao reanalisar candidato {candidate.id}: {str(e)}")
+                continue
+        
+        db.session.commit()
+        
+        if reanalyzed_count > 0:
+            flash(f'Reanálise concluída! {reanalyzed_count} candidatos foram reanalisados.', 'success')
+        else:
+            flash('Nenhum candidato pôde ser reanalisado.', 'warning')
+            
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Erro durante a reanálise: {str(e)}', 'error')
+    
+    return redirect(url_for('job_detail', job_id=job_id))
 
 # ==================== INICIALIZAÇÃO ====================
 
-# ⚠️ Executa a migração antes de iniciar o servidor
-run_auto_migration(app)
+# ✅ INICIALIZA O BANCO DE DADOS ANTES DO PRIMEIRO REQUEST
+@app.before_first_request
+def create_tables():
+    """Garante que as tabelas existam antes do primeiro request"""
+    init_database()
 
-# ✅ INICIALIZA O BANCO DE DADOS
-initialize_database()
+# ✅ ROTA DE DEBUG PARA VERIFICAR STATUS
+@app.route('/debug')
+def debug_info():
+    """Rota para debugging no Render"""
+    info = {
+        'database_url': app.config['SQLALCHEMY_DATABASE_URI'][:50] + '...' if app.config['SQLALCHEMY_DATABASE_URI'] else None,
+        'user_count': User.query.count(),
+        'tables_created': len(inspect(db.engine).get_table_names()) if db.engine else 0
+    }
+    return jsonify(info)
 
 if __name__ == "__main__":
-    # Cria as tabelas se estiver usando SQLite localmente e não houver migrações
-    if 'sqlite' in app.config['SQLALCHEMY_DATABASE_URI'] and not os.path.exists('migrations'):
-        with app.app_context():
-            db.create_all()
-            
-    app.run(debug=True)
-
-if __name__ == "__main__":
-    # Cria as tabelas se estiver usando SQLite localmente e não houver migrações
-    if 'sqlite' in app.config['SQLALCHEMY_DATABASE_URI'] and not os.path.exists('migrations'):
+    # Inicializa o banco de dados
+    init_database()
+    
+    # Cria as tabelas se estiver usando SQLite localmente
+    if 'sqlite' in app.config['SQLALCHEMY_DATABASE_URI']:
         with app.app_context():
             db.create_all()
             
