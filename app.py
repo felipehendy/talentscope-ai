@@ -261,22 +261,16 @@ def login():
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
-    """Registro com validações completas - CORRIGIDO"""
-    user_count = User.query.count()
-    
-    # Bloquear registro se já existem usuários e não é admin
-    # Cadastro sempre permitido
-    pass
-    
-    if current_user.is_authenticated and not current_user.is_admin and user_count > 0:
-        flash('Apenas administradores podem criar novos usuários.', 'warning')
+    """Registro de usuários - público"""
+
+    if current_user.is_authenticated:
         return redirect(url_for('dashboard'))
-    
+
     if request.method == 'POST':
         username = request.form.get('username', '').strip()
         email = request.form.get('email', '').strip().lower()
         password = request.form.get('password', '')
-        confirm_password = request.form.get('confirm_password', '')  # ADICIONADO
+        confirm_password = request.form.get('confirm_password', '')
         
          # ==================== VALIDAÇÕES ====================
         
