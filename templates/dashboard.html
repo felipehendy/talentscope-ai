@@ -2,15 +2,445 @@
 
 {% block title %}Dashboard - TalentScope AI{% endblock %}
 
+{% block extra_css %}
+<style>
+/* ==================== DASHBOARD CUSTOM STYLES ==================== */
+
+/* Top Header */
+.dashboard-header {
+    background: white;
+    padding: 25px;
+    border-radius: 10px;
+    margin-bottom: 25px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.dashboard-header h1 {
+    margin: 0;
+    color: var(--d1000-dark);
+    font-size: 28px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.dashboard-header h1 i {
+    color: var(--d1000-blue);
+}
+
+.dashboard-header p {
+    color: #6C757D;
+    margin: 5px 0 0 0;
+    font-size: 14px;
+}
+
+/* Stats Grid */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.stat-card {
+    background: white;
+    border-radius: 10px;
+    padding: 25px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 5px;
+    height: 100%;
+    background: var(--d1000-blue);
+}
+
+.stat-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+}
+
+.stat-card-content {
+    position: relative;
+    z-index: 1;
+}
+
+.stat-card-label {
+    font-size: 13px;
+    color: #6C757D;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 10px;
+}
+
+.stat-card-value {
+    font-size: 36px;
+    font-weight: 700;
+    color: var(--d1000-dark);
+    margin-bottom: 8px;
+}
+
+.stat-card-footer {
+    font-size: 13px;
+    color: var(--d1000-green);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.stat-card-icon {
+    position: absolute;
+    right: 20px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 50px;
+    color: rgba(0,0,0,0.05);
+}
+
+/* Dashboard Grid */
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+/* Dashboard Cards */
+.dashboard-card {
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+    overflow: hidden;
+}
+
+.dashboard-card-header {
+    background: var(--d1000-dark);
+    color: white;
+    padding: 18px 25px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.dashboard-card-header h5 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.dashboard-card-header a {
+    color: white;
+    text-decoration: none;
+    font-size: 14px;
+    opacity: 0.9;
+    transition: opacity 0.2s;
+}
+
+.dashboard-card-header a:hover {
+    opacity: 1;
+    text-decoration: underline;
+}
+
+.dashboard-card-body {
+    padding: 20px 25px;
+}
+
+/* Job List */
+.job-list-item {
+    padding: 16px;
+    border: 1px solid #E9ECEF;
+    border-radius: 8px;
+    margin-bottom: 12px;
+    transition: all 0.2s;
+}
+
+.job-list-item:last-child {
+    margin-bottom: 0;
+}
+
+.job-list-item:hover {
+    border-color: var(--d1000-blue);
+    background: #F8F9FA;
+    transform: translateX(3px);
+}
+
+.job-list-item h6 {
+    margin: 0 0 8px 0;
+    font-size: 16px;
+    color: var(--d1000-dark);
+    font-weight: 600;
+}
+
+.job-list-meta {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+}
+
+.job-list-meta span {
+    font-size: 13px;
+    color: #6C757D;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.job-list-meta i {
+    color: var(--d1000-blue);
+}
+
+.job-list-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 12px;
+    border-top: 1px solid #E9ECEF;
+}
+
+.job-list-footer small {
+    color: #6C757D;
+    font-size: 12px;
+}
+
+/* Quick Actions */
+.quick-actions {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+}
+
+.quick-action-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: #F8F9FA;
+    border: 2px solid #E9ECEF;
+    border-radius: 8px;
+    text-decoration: none;
+    color: var(--d1000-dark);
+    transition: all 0.3s;
+    gap: 10px;
+    min-height: 100px;
+}
+
+.quick-action-btn i {
+    font-size: 28px;
+    color: var(--d1000-blue);
+}
+
+.quick-action-btn span {
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.quick-action-btn:hover {
+    transform: translateY(-3px);
+    border-color: var(--d1000-blue);
+    background: #E7F3FF;
+    color: var(--d1000-blue);
+    box-shadow: 0 4px 12px rgba(2, 117, 216, 0.2);
+}
+
+.quick-action-btn.primary {
+    background: linear-gradient(135deg, var(--d1000-blue), #0056b3);
+    border-color: var(--d1000-blue);
+    color: white;
+}
+
+.quick-action-btn.primary i {
+    color: white;
+}
+
+.quick-action-btn.primary:hover {
+    background: linear-gradient(135deg, #0056b3, #004085);
+    color: white;
+    box-shadow: 0 6px 20px rgba(2, 117, 216, 0.4);
+}
+
+/* Activity List */
+.activity-list-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px 0;
+    border-bottom: 1px solid #E9ECEF;
+}
+
+.activity-list-item:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.activity-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.activity-icon.success {
+    background: #D4EDDA;
+    color: var(--d1000-green);
+}
+
+.activity-icon.info {
+    background: #D1ECF1;
+    color: #17a2b8;
+}
+
+.activity-icon.warning {
+    background: #FFF3CD;
+    color: var(--d1000-yellow);
+}
+
+.activity-text p {
+    margin: 0 0 4px 0;
+    font-size: 14px;
+    color: var(--d1000-dark);
+    font-weight: 500;
+}
+
+.activity-text small {
+    color: #6C757D;
+    font-size: 12px;
+}
+
+/* System Status */
+.status-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid #E9ECEF;
+}
+
+.status-item:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.status-label {
+    font-size: 14px;
+    color: #6C757D;
+}
+
+.status-value {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--d1000-dark);
+}
+
+.status-badge {
+    padding: 6px 14px;
+    border-radius: 15px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.status-badge.success {
+    background: #D4EDDA;
+    color: var(--d1000-green);
+}
+
+.status-badge.warning {
+    background: #FFF3CD;
+    color: #856404;
+}
+
+/* Empty State */
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+}
+
+.empty-state i {
+    font-size: 64px;
+    color: #DEE2E6;
+    margin-bottom: 20px;
+}
+
+.empty-state p {
+    color: #6C757D;
+    margin-bottom: 20px;
+    font-size: 16px;
+}
+
+/* Responsive */
+@media (max-width: 992px) {
+    .dashboard-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .dashboard-header {
+        text-align: center;
+    }
+    
+    .dashboard-header h1 {
+        font-size: 22px;
+        justify-content: center;
+    }
+    
+    .stat-card-value {
+        font-size: 28px;
+    }
+    
+    .stat-card-icon {
+        font-size: 40px;
+    }
+    
+    .quick-actions {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 480px) {
+    .dashboard-card-body {
+        padding: 15px;
+    }
+    
+    .job-list-meta {
+        flex-direction: column;
+        gap: 8px;
+    }
+}
+</style>
+{% endblock %}
+
 {% block content %}
-<!-- Top Header -->
-<div class="top-header">
+<!-- Dashboard Header -->
+<div class="dashboard-header">
     <div>
         <h1>
             <i class="fas fa-th-large"></i>
             Dashboard
         </h1>
-        <p>Visão geral do seu recrutamento</p>
+        <p>Visão geral do seu sistema de recrutamento</p>
     </div>
     <a href="{{ url_for('new_job') }}" class="btn btn-primary">
         <i class="fas fa-plus"></i> Nova Vaga
@@ -18,80 +448,91 @@
 </div>
 
 <!-- Stats Cards -->
-<div class="stats-row">
+<div class="stats-grid">
     <div class="stat-card">
-        <div class="stat-content">
-            <h6>Total de Vagas</h6>
-            <div class="number">{{ total_jobs }}</div>
-            <div class="subtitle">
-                <i class="fas fa-arrow-up"></i> Ativo
+        <div class="stat-card-content">
+            <div class="stat-card-label">Total de Vagas</div>
+            <div class="stat-card-value">{{ total_jobs }}</div>
+            <div class="stat-card-footer">
+                <i class="fas fa-check-circle"></i>
+                <span>Ativas no sistema</span>
             </div>
         </div>
-        <i class="fas fa-briefcase stat-icon"></i>
+        <i class="fas fa-briefcase stat-card-icon"></i>
     </div>
 
     <div class="stat-card">
-        <div class="stat-content">
-            <h6>Total de Candidatos</h6>
-            <div class="number">{{ total_candidates }}</div>
-            <div class="subtitle">
-                <i class="fas fa-arrow-up"></i> No pipeline
+        <div class="stat-card-content">
+            <div class="stat-card-label">Total de Candidatos</div>
+            <div class="stat-card-value">{{ total_candidates }}</div>
+            <div class="stat-card-footer">
+                <i class="fas fa-users"></i>
+                <span>No pipeline</span>
             </div>
         </div>
-        <i class="fas fa-users stat-icon"></i>
+        <i class="fas fa-users stat-card-icon"></i>
     </div>
 
     <div class="stat-card">
-        <div class="stat-content">
-            <h6>Pendentes</h6>
-            <div class="number">{{ pending_candidates }}</div>
-            <div class="subtitle">
-                <i class="fas fa-clock"></i> Aguardando análise
+        <div class="stat-card-content">
+            <div class="stat-card-label">Pendentes Análise</div>
+            <div class="stat-card-value">{{ pending_candidates }}</div>
+            <div class="stat-card-footer">
+                <i class="fas fa-clock"></i>
+                <span>Aguardando revisão</span>
             </div>
         </div>
-        <i class="fas fa-clock stat-icon"></i>
+        <i class="fas fa-clock stat-card-icon"></i>
     </div>
 
     <div class="stat-card">
-        <div class="stat-content">
-            <h6>Score Médio IA</h6>
-            <div class="number">{{ avg_score }}%</div>
-            <div class="subtitle">
-                <i class="fas fa-chart-line"></i> Qualidade média
+        <div class="stat-card-content">
+            <div class="stat-card-label">Score Médio IA</div>
+            <div class="stat-card-value">{{ "%.0f"|format(avg_score) }}%</div>
+            <div class="stat-card-footer">
+                <i class="fas fa-chart-line"></i>
+                <span>Qualidade média</span>
             </div>
         </div>
-        <i class="fas fa-brain stat-icon"></i>
+        <i class="fas fa-brain stat-card-icon"></i>
     </div>
 </div>
 
-<!-- Content Grid -->
-<div class="content-grid">
+<!-- Main Dashboard Grid -->
+<div class="dashboard-grid">
     <!-- Vagas Recentes -->
-    <div class="content-card">
-        <div class="content-card-header">
-            <h5>Vagas Recentes</h5>
-            <a href="{{ url_for('jobs') }}">Ver Todas</a>
+    <div class="dashboard-card">
+        <div class="dashboard-card-header">
+            <h5><i class="fas fa-briefcase"></i> Vagas Recentes</h5>
+            <a href="{{ url_for('jobs') }}">Ver Todas <i class="fas fa-arrow-right"></i></a>
         </div>
-        <div class="content-card-body">
+        <div class="dashboard-card-body">
             {% if recent_jobs %}
                 {% for job in recent_jobs %}
-                <div class="job-item">
+                <div class="job-list-item">
                     <h6>{{ job.title }}</h6>
-                    <div class="job-meta">
-                        <span><i class="fas fa-calendar"></i> {{ job.created_at.strftime('%d/%m/%Y') }}</span>
+                    <div class="job-list-meta">
+                        <span>
+                            <i class="fas fa-calendar"></i>
+                            {{ job.created_at.strftime('%d/%m/%Y') }}
+                        </span>
+                        <span>
+                            <i class="fas fa-users"></i>
+                            {{ job.candidates|length }} candidato{{ 's' if job.candidates|length != 1 else '' }}
+                        </span>
                     </div>
-                    <div class="job-footer">
-                        <small>Criada em {{ job.created_at.strftime('%d/%m/%Y') }}</small>
-                        <a href="{{ url_for('job_detail', job_id=job.id) }}" class="btn btn-outline-primary btn-sm">
-                            Ver
+                    <div class="job-list-footer">
+                        <small>Criada há {{ (now - job.created_at).days if (now - job.created_at).days > 0 else 'menos de 1' }} dia{{ 's' if (now - job.created_at).days != 1 else '' }}</small>
+                        <a href="{{ url_for('job_detail', job_id=job.id) }}" class="btn btn-sm btn-primary">
+                            <i class="fas fa-eye"></i> Ver Detalhes
                         </a>
                     </div>
                 </div>
                 {% endfor %}
             {% else %}
-                <div class="text-center py-5">
-                    <i class="fas fa-briefcase" style="font-size: 48px; color: #DEE2E6; margin-bottom: 16px;"></i>
-                    <p style="color: #6C757D; margin-bottom: 16px;">Nenhuma vaga cadastrada</p>
+                <div class="empty-state">
+                    <i class="fas fa-briefcase"></i>
+                    <p>Nenhuma vaga cadastrada ainda</p>
                     <a href="{{ url_for('new_job') }}" class="btn btn-primary">
                         <i class="fas fa-plus"></i> Criar Primeira Vaga
                     </a>
@@ -100,28 +541,28 @@
         </div>
     </div>
 
-    <!-- Sidebar Direita -->
+    <!-- Sidebar -->
     <div>
         <!-- Ações Rápidas -->
-        <div class="content-card" style="margin-bottom: 20px;">
-            <div class="content-card-header">
-                <h5>Ações Rápidas</h5>
+        <div class="dashboard-card" style="margin-bottom: 20px;">
+            <div class="dashboard-card-header">
+                <h5><i class="fas fa-bolt"></i> Ações Rápidas</h5>
             </div>
-            <div class="content-card-body">
-                <div class="quick-actions-grid">
-                    <a href="{{ url_for('new_job') }}" class="action-btn primary">
+            <div class="dashboard-card-body">
+                <div class="quick-actions">
+                    <a href="{{ url_for('new_job') }}" class="quick-action-btn primary">
                         <i class="fas fa-plus-circle"></i>
                         <span>Nova Vaga</span>
                     </a>
-                    <a href="{{ url_for('jobs') }}" class="action-btn">
+                    <a href="{{ url_for('jobs') }}" class="quick-action-btn">
                         <i class="fas fa-briefcase"></i>
                         <span>Ver Vagas</span>
                     </a>
-                    <a href="{{ url_for('candidate_space') }}" class="action-btn">
+                    <a href="{{ url_for('candidate_space') }}" class="quick-action-btn">
                         <i class="fas fa-user-plus"></i>
                         <span>Candidatos</span>
                     </a>
-                    <a href="{{ url_for('calendar') }}" class="action-btn">
+                    <a href="{{ url_for('calendar') }}" class="quick-action-btn">
                         <i class="fas fa-calendar-alt"></i>
                         <span>Agenda</span>
                     </a>
@@ -130,65 +571,81 @@
         </div>
 
         <!-- Atividades Recentes -->
-        <div class="content-card" style="margin-bottom: 20px;">
-            <div class="content-card-header">
-                <h5>Atividades Recentes</h5>
+        <div class="dashboard-card" style="margin-bottom: 20px;">
+            <div class="dashboard-card-header">
+                <h5><i class="fas fa-history"></i> Atividades</h5>
             </div>
-            <div class="content-card-body">
-                <div class="activity-item">
-                    <div class="activity-icon success">
-                        <i class="fas fa-check"></i>
+            <div class="dashboard-card-body">
+                {% if recent_jobs %}
+                    <div class="activity-list-item">
+                        <div class="activity-icon success">
+                            <i class="fas fa-check"></i>
+                        </div>
+                        <div class="activity-text">
+                            <p>Sistema configurado</p>
+                            <small>Bem-vindo ao TalentScope AI!</small>
+                        </div>
                     </div>
-                    <div class="activity-content">
-                        <p>Nova vaga publicada</p>
-                        <small>Há 2 horas</small>
+                    {% if total_candidates > 0 %}
+                    <div class="activity-list-item">
+                        <div class="activity-icon info">
+                            <i class="fas fa-user-check"></i>
+                        </div>
+                        <div class="activity-text">
+                            <p>{{ total_candidates }} candidato{{ 's' if total_candidates != 1 else '' }}</p>
+                            <small>Cadastrado{{ 's' if total_candidates != 1 else '' }} no sistema</small>
+                        </div>
                     </div>
-                </div>
-                <div class="activity-item">
-                    <div class="activity-icon info">
-                        <i class="fas fa-user"></i>
+                    {% endif %}
+                {% else %}
+                    <div class="activity-list-item">
+                        <div class="activity-icon warning">
+                            <i class="fas fa-info-circle"></i>
+                        </div>
+                        <div class="activity-text">
+                            <p>Comece agora</p>
+                            <small>Crie sua primeira vaga</small>
+                        </div>
                     </div>
-                    <div class="activity-content">
-                        <p>3 novos candidatos</p>
-                        <small>Há 5 horas</small>
-                    </div>
-                </div>
-                <div class="activity-item">
-                    <div class="activity-icon warning">
-                        <i class="fas fa-clock"></i>
-                    </div>
-                    <div class="activity-content">
-                        <p>Entrevista agendada</p>
-                        <small>Ontem</small>
-                    </div>
-                </div>
+                {% endif %}
             </div>
         </div>
 
-        <!-- Métricas de Performance -->
-        <div class="content-card">
-            <div class="content-card-header">
-                <h5>Performance</h5>
+        <!-- Status do Sistema -->
+        <div class="dashboard-card">
+            <div class="dashboard-card-header">
+                <h5><i class="fas fa-server"></i> Status</h5>
             </div>
-            <div class="content-card-body">
-                <div class="metric-item">
-                    <span class="metric-label">Taxa de Conversão</span>
-                    <span class="metric-value">68%</span>
+            <div class="dashboard-card-body">
+                <div class="status-item">
+                    <span class="status-label">Vagas Ativas</span>
+                    <span class="status-value">{{ total_jobs }}</span>
                 </div>
-                <div class="metric-item">
-                    <span class="metric-label">Tempo Médio</span>
-                    <span class="metric-value">15 dias</span>
+                <div class="status-item">
+                    <span class="status-label">Candidatos</span>
+                    <span class="status-value">{{ total_candidates }}</span>
                 </div>
-                <div class="metric-item">
-                    <span class="metric-label">Sistema</span>
-                    <span class="metric-badge success">Online</span>
+                <div class="status-item">
+                    <span class="status-label">Sistema</span>
+                    <span class="status-badge success">
+                        <i class="fas fa-check-circle"></i> Online
+                    </span>
                 </div>
-                <div class="metric-item">
-                    <span class="metric-label">IA Gemini</span>
-                    <span class="metric-badge success">Conectado</span>
+                <div class="status-item">
+                    <span class="status-label">IA OpenAI</span>
+                    <span class="status-badge success">
+                        <i class="fas fa-plug"></i> Conectado
+                    </span>
                 </div>
             </div>
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Variável now para cálculo de dias
+const now = new Date();
+</script>
 {% endblock %}

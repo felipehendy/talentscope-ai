@@ -1,0 +1,29 @@
+{
+  "template_id": 67,
+  "responses": [
+    {
+      "id": 14545911,
+      "status": "starting",
+      "input": {
+        "texto": "Estou construindo uma solução de IA para RH focada em análise de currículos.",
+        "temperature": 0.5,
+        "model": "gpt-4o-mini",
+        "maxlength": 120,
+        "language": "Portuguese (Brazil)"
+      },
+      "output": null,
+      "credits": 0.000202,
+      "root_id": 14545911,
+      "created_at": "2025-12-13T23:04:17.000000Z",
+      "updated_at": "2025-12-13T23:04:17.000000Z",
+      "answers": {
+        "texto": "Estou construindo uma solução de IA para RH focada em análise de currículos.",
+        "temperature": 0.5,
+        "model": "gpt-4o-mini",
+        "maxlength": 120,
+        "language": "Portuguese (Brazil)"
+      },
+      "template_id": 67
+    }
+  ]
+}

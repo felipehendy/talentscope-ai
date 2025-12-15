@@ -1,111 +1,188 @@
 {% extends "base.html" %}
 
-{% block title %}Espaço Candidato - TalentScope AI{% endblock %}
+{% block title %}Espaço Candidato - PARETO AI{% endblock %}
 
 {% block content %}
-<!-- Top Header -->
-<div class="top-header">
-    <div>
-        <h1>
-            <i class="fas fa-users"></i>
-            Espaço Candidato
-        </h1>
-        <p>Top 10 candidatos com melhor pontuação IA</p>
+<!-- Top Header with PARETO branding -->
+<div class="pareto-header">
+    <div class="header-content">
+        <div class="header-left">
+            <div class="pareto-brand">
+                <div class="brand-icon">
+                    <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+                        <circle cx="16" cy="16" r="14" fill="url(#gradient1)" opacity="0.2"/>
+                        <path d="M16 8L22 12V20L16 24L10 20V12L16 8Z" fill="url(#gradient1)"/>
+                        <defs>
+                            <linearGradient id="gradient1" x1="0" y1="0" x2="32" y2="32">
+                                <stop offset="0%" style="stop-color:#667eea"/>
+                                <stop offset="100%" style="stop-color:#764ba2"/>
+                            </linearGradient>
+                        </defs>
+                    </svg>
+                </div>
+                <div class="brand-text">
+                    <h1>PARETO</h1>
+                    <span class="brand-subtitle">AI Intelligence</span>
+                </div>
+            </div>
+        </div>
+        <div class="header-right">
+            <div class="status-badge">
+                <div class="pulse-dot"></div>
+                <span>Agente Ativo</span>
+            </div>
+        </div>
+    </div>
+    <div class="header-description">
+        <p>Sistema de Análise Inteligente • Top 10 Candidatos com Maior Pontuação IA</p>
     </div>
 </div>
 
-<!-- Ranking de Candidatos -->
-<div class="content-card">
-    <div class="content-card-header">
-        <h5>
-            <i class="fas fa-trophy"></i>
-            Ranking TalentScope AI
-        </h5>
+<!-- Main Content Card with Modern AI Design -->
+<div class="pareto-card">
+    <div class="card-header">
+        <div class="header-title">
+            <div class="icon-wrapper">
+                <i class="fas fa-trophy"></i>
+            </div>
+            <div>
+                <h2>Ranking PARETO AI</h2>
+                <p class="subtitle">Análise preditiva baseada em múltiplos agentes</p>
+            </div>
+        </div>
+        <div class="header-actions">
+            <button class="action-btn secondary">
+                <i class="fas fa-sync-alt"></i>
+                <span>Atualizar</span>
+            </button>
+            <button class="action-btn primary">
+                <i class="fas fa-download"></i>
+                <span>Exportar</span>
+            </button>
+        </div>
     </div>
-    <div class="content-card-body" style="padding: 0;">
+
+    <div class="card-body">
         {% if top_candidates and top_candidates|length > 0 %}
-            <div class="table-responsive">
-                <table class="table table-hover">
-                    <thead>
-                        <tr>
-                            <th width="50">#</th>
-                            <th>Candidato</th>
-                            <th>Score IA</th>
-                            <th>Localização</th>
-                            <th>Formação</th>
-                            <th width="100">Ações</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for candidate in top_candidates %}
-                        <tr>
-                            <td>
-                                <span class="badge {% if loop.index == 1 %}bg-warning{% elif loop.index == 2 %}bg-secondary{% elif loop.index == 3 %}bg-danger{% else %}badge-primary{% endif %}">
-                                    {{ loop.index }}
-                                </span>
-                            </td>
-                            <td>
-                                <strong>{{ candidate.name }}</strong>
-                                <br>
-                                <small class="text-muted">{{ candidate.email }}</small>
-                            </td>
-                            <td>
-                                <div class="d-flex align-items-center">
-                                    <div class="progress flex-grow-1 me-2" style="height: 12px; min-width: 80px;">
-                                        <div class="progress-bar 
-                                            {% if candidate.score >= 8 %}bg-success
-                                            {% elif candidate.score >= 6 %}bg-warning
-                                            {% else %}bg-danger{% endif %}" 
-                                            style="width: {{ candidate.score * 10 }}%">
-                                        </div>
-                                    </div>
-                                    <strong class="ms-2">{{ candidate.score }}</strong>
+            <div class="candidates-grid">
+                {% for candidate in top_candidates %}
+                <div class="candidate-card" data-rank="{{ loop.index }}">
+                    <!-- Rank Badge -->
+                    <div class="rank-badge rank-{{ loop.index }}">
+                        <div class="rank-number">{{ loop.index }}</div>
+                        {% if loop.index == 1 %}
+                            <i class="fas fa-crown"></i>
+                        {% elif loop.index <= 3 %}
+                            <i class="fas fa-medal"></i>
+                        {% endif %}
+                    </div>
+
+                    <!-- Candidate Info -->
+                    <div class="candidate-info">
+                        <div class="candidate-header">
+                            <div class="avatar">
+                                <i class="fas fa-user"></i>
+                            </div>
+                            <div class="candidate-details">
+                                <h3>{{ candidate.name }}</h3>
+                                <p class="email">{{ candidate.email }}</p>
+                            </div>
+                        </div>
+
+                        <!-- Score Section -->
+                        <div class="score-section">
+                            <div class="score-label">Score IA PARETO</div>
+                            <div class="score-display">
+                                <div class="score-circle {% if candidate.score >= 8 %}high{% elif candidate.score >= 6 %}medium{% else %}low{% endif %}">
+                                    <svg width="80" height="80" viewBox="0 0 80 80">
+                                        <circle cx="40" cy="40" r="36" fill="none" stroke="#e0e7ff" stroke-width="6"/>
+                                        <circle cx="40" cy="40" r="36" fill="none" stroke="url(#scoreGradient)" stroke-width="6"
+                                                stroke-dasharray="{{ candidate.score * 22.6 }} 226" 
+                                                stroke-linecap="round" 
+                                                transform="rotate(-90 40 40)"/>
+                                        <text x="40" y="45" text-anchor="middle" font-size="20" font-weight="bold" fill="currentColor">
+                                            {{ candidate.score }}
+                                        </text>
+                                    </svg>
                                 </div>
-                            </td>
-                            <td>
-                                {% if candidate.city != "Local não identificada" and candidate.city != "Cidade não identificada" %}
-                                    <i class="fas fa-map-marker-alt text-danger me-1"></i>
-                                    {{ candidate.city }}/{{ candidate.state }}
-                                {% else %}
-                                    <span class="text-muted">
-                                        <i class="fas fa-map-marker-alt me-1"></i>
-                                        Não identificada
-                                    </span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                <i class="fas fa-graduation-cap text-success me-1"></i>
-                                {{ candidate.education }}
-                            </td>
-                            <td>
-                                <div class="btn-group">
-                                    {% if candidate.phone %}
-                                        <a href="{{ candidate.phone|whatsapp_link }}" 
-                                           target="_blank" 
-                                           class="btn btn-success btn-sm"
-                                           title="Contatar via WhatsApp">
-                                            <i class="fab fa-whatsapp"></i>
-                                        </a>
+                                <div class="score-status">
+                                    {% if candidate.score >= 8 %}
+                                        <span class="status-text high">Excelente</span>
+                                    {% elif candidate.score >= 6 %}
+                                        <span class="status-text medium">Bom</span>
+                                    {% else %}
+                                        <span class="status-text low">Regular</span>
                                     {% endif %}
-                                    <a href="{{ url_for('candidate_detail', candidate_id=candidate.id) }}" 
-                                       class="btn btn-primary btn-sm"
-                                       title="Ver detalhes">
-                                        <i class="fas fa-eye"></i>
-                                    </a>
                                 </div>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+                            </div>
+                        </div>
+
+                        <!-- Additional Info -->
+                        <div class="info-grid">
+                            <div class="info-item">
+                                <i class="fas fa-map-marker-alt"></i>
+                                <div class="info-content">
+                                    <span class="info-label">Localização</span>
+                                    {% if candidate.city != "Local não identificada" and candidate.city != "Cidade não identificada" %}
+                                        <span class="info-value">{{ candidate.city }}/{{ candidate.state }}</span>
+                                    {% else %}
+                                        <span class="info-value muted">Não identificada</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="info-item">
+                                <i class="fas fa-graduation-cap"></i>
+                                <div class="info-content">
+                                    <span class="info-label">Formação</span>
+                                    <span class="info-value">{{ candidate.education }}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Actions -->
+                        <div class="candidate-actions">
+                            {% if candidate.phone %}
+                                <a href="{{ candidate.phone|whatsapp_link }}" 
+                                   target="_blank" 
+                                   class="action-button whatsapp"
+                                   title="Contatar via WhatsApp">
+                                    <i class="fab fa-whatsapp"></i>
+                                    <span>WhatsApp</span>
+                                </a>
+                            {% endif %}
+                            <a href="{{ url_for('candidate_detail', candidate_id=candidate.id) }}" 
+                               class="action-button details"
+                               title="Ver detalhes completos">
+                                <i class="fas fa-eye"></i>
+                                <span>Ver Perfil</span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
             </div>
         {% else %}
-            <div class="text-center py-5" style="padding: 60px 20px;">
-                <i class="fas fa-users" style="font-size: 64px; color: #DEE2E6; margin-bottom: 20px;"></i>
-                <h4 style="color: #6C757D; margin-bottom: 12px;">Nenhum candidato encontrado</h4>
-                <p style="color: #6C757D; margin-bottom: 24px;">Adicione candidatos e execute a análise de IA para ver o ranking.</p>
-                <a href="{{ url_for('jobs') }}" class="btn btn-primary">
-                    <i class="fas fa-briefcase me-2"></i>Ver Vagas
+            <div class="empty-state">
+                <div class="empty-icon">
+                    <svg width="120" height="120" viewBox="0 0 120 120" fill="none">
+                        <circle cx="60" cy="60" r="50" fill="url(#emptyGradient)" opacity="0.1"/>
+                        <path d="M40 50C40 44.4772 44.4772 40 50 40H70C75.5228 40 80 44.4772 80 50V70C80 75.5228 75.5228 80 70 80H50C44.4772 80 40 75.5228 40 70V50Z" stroke="url(#emptyGradient)" stroke-width="3" stroke-linecap="round"/>
+                        <circle cx="55" cy="55" r="3" fill="url(#emptyGradient)"/>
+                        <circle cx="65" cy="55" r="3" fill="url(#emptyGradient)"/>
+                        <path d="M52 68C52 68 55 72 60 72C65 72 68 68 68 68" stroke="url(#emptyGradient)" stroke-width="3" stroke-linecap="round"/>
+                        <defs>
+                            <linearGradient id="emptyGradient" x1="0" y1="0" x2="120" y2="120">
+                                <stop offset="0%" style="stop-color:#667eea"/>
+                                <stop offset="100%" style="stop-color:#764ba2"/>
+                            </linearGradient>
+                        </defs>
+                    </svg>
+                </div>
+                <h3>Nenhum candidato analisado ainda</h3>
+                <p>Execute a análise de IA para ver o ranking completo dos candidatos.</p>
+                <a href="{{ url_for('jobs') }}" class="empty-action">
+                    <i class="fas fa-briefcase"></i>
+                    <span>Gerenciar Vagas</span>
                 </a>
             </div>
         {% endif %}
@@ -113,75 +190,612 @@
 </div>
 
 <style>
-.table {
-    margin-bottom: 0;
+:root {
+    --pareto-primary: #667eea;
+    --pareto-secondary: #764ba2;
+    --pareto-accent: #f093fb;
+    --pareto-dark: #1a1a2e;
+    --pareto-light: #f8f9ff;
+    --pareto-success: #10b981;
+    --pareto-warning: #f59e0b;
+    --pareto-danger: #ef4444;
+    --pareto-text: #2d3748;
+    --pareto-text-light: #718096;
+    --pareto-border: #e2e8f0;
+    --pareto-shadow: rgba(102, 126, 234, 0.1);
 }
 
-.table tbody tr {
-    border-bottom: 1px solid var(--border-color);
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
 }
 
-.table tbody tr:hover {
-    background-color: rgba(23, 162, 184, 0.04);
+body {
+    background: linear-gradient(135deg, #f8f9ff 0%, #e9ecff 100%);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    color: var(--pareto-text);
+    min-height: 100vh;
 }
 
-.badge-primary {
-    background: var(--d1000-blue);
+/* Header Styles */
+.pareto-header {
+    background: linear-gradient(135deg, var(--pareto-primary) 0%, var(--pareto-secondary) 100%);
+    padding: 2rem;
+    border-radius: 16px;
+    margin-bottom: 2rem;
+    box-shadow: 0 20px 60px rgba(102, 126, 234, 0.3);
+    position: relative;
+    overflow: hidden;
+}
+
+.pareto-header::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: url('data:image/svg+xml,<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="20" cy="20" r="1" fill="white" opacity="0.1"/></svg>');
+    opacity: 0.5;
+}
+
+.header-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: relative;
+    z-index: 1;
+}
+
+.pareto-brand {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.brand-icon {
+    animation: float 3s ease-in-out infinite;
+}
+
+@keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-10px); }
+}
+
+.brand-text h1 {
+    font-size: 2rem;
+    font-weight: 800;
+    color: white;
+    letter-spacing: 2px;
+    margin: 0;
+}
+
+.brand-subtitle {
+    font-size: 0.875rem;
+    color: rgba(255, 255, 255, 0.8);
+    font-weight: 500;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+}
+
+.status-badge {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(10px);
+    padding: 0.5rem 1rem;
+    border-radius: 100px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.pulse-dot {
+    width: 8px;
+    height: 8px;
+    background: var(--pareto-success);
+    border-radius: 50%;
+    animation: pulse 2s ease-in-out infinite;
+    box-shadow: 0 0 10px var(--pareto-success);
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(1.2); }
+}
+
+.status-badge span {
+    color: white;
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+.header-description {
+    margin-top: 1rem;
+    position: relative;
+    z-index: 1;
+}
+
+.header-description p {
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 0.95rem;
+    font-weight: 500;
+}
+
+/* Card Styles */
+.pareto-card {
+    background: white;
+    border-radius: 20px;
+    box-shadow: 0 10px 40px var(--pareto-shadow);
+    overflow: hidden;
+}
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5rem 2rem;
+    background: linear-gradient(135deg, #fafbff 0%, #f0f2ff 100%);
+    border-bottom: 1px solid var(--pareto-border);
+}
+
+.header-title {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.icon-wrapper {
+    width: 48px;
+    height: 48px;
+    background: linear-gradient(135deg, var(--pareto-primary), var(--pareto-secondary));
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.25rem;
+}
+
+.header-title h2 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--pareto-dark);
+    margin: 0;
+}
+
+.subtitle {
+    font-size: 0.875rem;
+    color: var(--pareto-text-light);
+    margin: 0.25rem 0 0;
+}
+
+.header-actions {
+    display: flex;
+    gap: 0.75rem;
+}
+
+.action-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.625rem 1.25rem;
+    border: none;
+    border-radius: 10px;
+    font-weight: 600;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.action-btn.primary {
+    background: linear-gradient(135deg, var(--pareto-primary), var(--pareto-secondary));
     color: white;
 }
 
-.progress {
-    border-radius: 10px;
+.action-btn.secondary {
+    background: white;
+    color: var(--pareto-primary);
+    border: 2px solid var(--pareto-border);
+}
+
+.action-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 20px var(--pareto-shadow);
+}
+
+/* Candidates Grid */
+.card-body {
+    padding: 2rem;
+}
+
+.candidates-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+    gap: 1.5rem;
+}
+
+.candidate-card {
+    background: white;
+    border: 2px solid var(--pareto-border);
+    border-radius: 16px;
+    padding: 1.5rem;
+    position: relative;
+    transition: all 0.3s ease;
     overflow: hidden;
-    background: #E9ECEF;
 }
 
-.progress-bar {
-    transition: width 0.5s ease;
+.candidate-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 4px;
+    height: 100%;
+    background: linear-gradient(180deg, var(--pareto-primary), var(--pareto-secondary));
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.candidate-card:hover {
+    border-color: var(--pareto-primary);
+    box-shadow: 0 10px 40px var(--pareto-shadow);
+    transform: translateY(-5px);
+}
+
+.candidate-card:hover::before {
+    opacity: 1;
+}
+
+/* Rank Badge */
+.rank-badge {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 1.125rem;
+    color: white;
+}
+
+.rank-badge.rank-1 {
+    background: linear-gradient(135deg, #fbbf24, #f59e0b);
+}
+
+.rank-badge.rank-2 {
+    background: linear-gradient(135deg, #94a3b8, #64748b);
+}
+
+.rank-badge.rank-3 {
+    background: linear-gradient(135deg, #fb923c, #f97316);
+}
+
+.rank-badge:not(.rank-1):not(.rank-2):not(.rank-3) {
+    background: linear-gradient(135deg, var(--pareto-primary), var(--pareto-secondary));
+}
+
+.rank-badge i {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    font-size: 0.75rem;
+}
+
+/* Candidate Info */
+.candidate-info {
+    margin-top: 2rem;
+}
+
+.candidate-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.avatar {
+    width: 56px;
+    height: 56px;
+    background: linear-gradient(135deg, var(--pareto-primary), var(--pareto-secondary));
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.5rem;
+}
+
+.candidate-details h3 {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: var(--pareto-dark);
+    margin: 0 0 0.25rem;
+}
+
+.email {
+    font-size: 0.875rem;
+    color: var(--pareto-text-light);
+    margin: 0;
+}
+
+/* Score Section */
+.score-section {
+    background: linear-gradient(135deg, #fafbff 0%, #f0f2ff 100%);
+    border-radius: 12px;
+    padding: 1.25rem;
+    margin-bottom: 1.5rem;
+}
+
+.score-label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--pareto-text-light);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 1rem;
+}
+
+.score-display {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+}
+
+.score-circle {
+    position: relative;
+}
+
+.score-circle.high {
+    color: var(--pareto-success);
+}
+
+.score-circle.medium {
+    color: var(--pareto-warning);
+}
+
+.score-circle.low {
+    color: var(--pareto-danger);
+}
+
+.score-status {
+    flex: 1;
+}
+
+.status-text {
+    display: inline-block;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 0.875rem;
+}
+
+.status-text.high {
+    background: rgba(16, 185, 129, 0.1);
+    color: var(--pareto-success);
+}
+
+.status-text.medium {
+    background: rgba(245, 158, 11, 0.1);
+    color: var(--pareto-warning);
+}
+
+.status-text.low {
+    background: rgba(239, 68, 68, 0.1);
+    color: var(--pareto-danger);
+}
+
+/* Info Grid */
+.info-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.info-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    background: var(--pareto-light);
     border-radius: 10px;
 }
 
-/* Cores personalizadas para os scores */
-.bg-success {
-    background: linear-gradient(45deg, #28a745, #20c997) !important;
+.info-item i {
+    color: var(--pareto-primary);
+    font-size: 1.125rem;
+    margin-top: 0.125rem;
 }
 
-.bg-warning {
-    background: linear-gradient(45deg, #ffc107, #fd7e14) !important;
+.info-content {
+    flex: 1;
+    min-width: 0;
 }
 
-.bg-danger {
-    background: linear-gradient(45deg, #dc3545, #e83e8c) !important;
+.info-label {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--pareto-text-light);
+    font-weight: 600;
+    margin-bottom: 0.25rem;
 }
 
-.bg-secondary {
-    background: linear-gradient(45deg, #6c757d, #495057) !important;
+.info-value {
+    display: block;
+    font-size: 0.875rem;
+    color: var(--pareto-dark);
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.info-value.muted {
+    color: var(--pareto-text-light);
+}
+
+/* Candidate Actions */
+.candidate-actions {
+    display: flex;
+    gap: 0.75rem;
+}
+
+.action-button {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.75rem;
+    border-radius: 10px;
+    font-weight: 600;
+    font-size: 0.875rem;
+    text-decoration: none;
+    transition: all 0.3s ease;
+}
+
+.action-button.whatsapp {
+    background: var(--pareto-success);
+    color: white;
+}
+
+.action-button.details {
+    background: linear-gradient(135deg, var(--pareto-primary), var(--pareto-secondary));
+    color: white;
+}
+
+.action-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 20px var(--pareto-shadow);
+}
+
+/* Empty State */
+.empty-state {
+    text-align: center;
+    padding: 4rem 2rem;
+}
+
+.empty-icon {
+    margin-bottom: 2rem;
+}
+
+.empty-state h3 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--pareto-dark);
+    margin-bottom: 0.75rem;
+}
+
+.empty-state p {
+    color: var(--pareto-text-light);
+    font-size: 1rem;
+    margin-bottom: 2rem;
+}
+
+.empty-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.875rem 1.75rem;
+    background: linear-gradient(135deg, var(--pareto-primary), var(--pareto-secondary));
+    color: white;
+    border-radius: 12px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.3s ease;
+}
+
+.empty-action:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 30px var(--pareto-shadow);
+}
+
+/* SVG Gradient for Score Circle */
+svg defs {
+    display: none;
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+    .candidates-grid {
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    }
 }
 
 @media (max-width: 768px) {
-    .table-responsive {
-        font-size: 12px;
+    .pareto-header {
+        padding: 1.5rem;
     }
-    
-    .table th,
-    .table td {
-        padding: 8px 4px;
+
+    .header-content {
+        flex-direction: column;
+        gap: 1rem;
+        align-items: flex-start;
     }
-    
-    .progress {
-        height: 8px !important;
-        min-width: 60px !important;
+
+    .brand-text h1 {
+        font-size: 1.5rem;
     }
-    
-    .badge {
-        font-size: 10px;
-        padding: 4px 6px;
+
+    .card-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+        padding: 1.25rem;
     }
-    
-    .btn-group .btn {
-        padding: 4px 6px;
-        font-size: 11px;
+
+    .header-actions {
+        width: 100%;
+    }
+
+    .action-btn {
+        flex: 1;
+        justify-content: center;
+    }
+
+    .candidates-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .card-body {
+        padding: 1.25rem;
+    }
+
+    .score-display {
+        flex-direction: column;
+        text-align: center;
+    }
+}
+
+@media (max-width: 480px) {
+    .brand-text h1 {
+        font-size: 1.25rem;
+    }
+
+    .brand-subtitle {
+        font-size: 0.75rem;
+    }
+
+    .candidate-actions {
+        flex-direction: column;
+    }
+
+    .action-button {
+        width: 100%;
     }
 }
 </style>
+
+<svg style="display: none;">
+    <defs>
+        <linearGradient id="scoreGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:#667eea"/>
+            <stop offset="100%" style="stop-color:#764ba2"/>
+        </linearGradient>
+    </defs>
+</svg>
 {% endblock %}

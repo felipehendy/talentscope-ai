@@ -7,11 +7,10 @@
     <!-- Lado Esquerdo (Marca) -->
     <div class="brand-side">
         <div class="brand-logo-container">
-            <img src="{{ url_for('static', filename='Marca.png') }}" alt="Logo TalentScope AI">
+            <img src="{{ url_for('static', filename='logo.png') }}" alt="TalentScope AI Logo">
         </div>
         <div class="brand-text-container">
-            <p class="slogan">Inteligência Artificial  
-para Recrutamento</p>
+            <p class="slogan">Inteligência Artificial para Recrutamento</p>
             <p class="subtitle">Encontre os melhores talentos de forma rápida e precisa.</p>
         </div>
     </div>
@@ -44,7 +43,7 @@ para Recrutamento</p>
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 {% for category, message in messages %}
-                    {% if category == 'danger' %}
+                    {% if category == 'danger' or category == 'error' %}
                         <div class="alert-danger">
                             <i class="fas fa-exclamation-triangle"></i> {{ message }}
                         </div>
@@ -52,79 +51,183 @@ para Recrutamento</p>
                         <div class="alert-success">
                             <i class="fas fa-check-circle"></i> {{ message }}
                         </div>
+                    {% elif category == 'warning' %}
+                        <div class="alert-warning">
+                            <i class="fas fa-exclamation-circle"></i> {{ message }}
+                        </div>
                     {% endif %}
                 {% endfor %}
             {% endif %}
         {% endwith %}
 
-       
-
-        <!-- Formulário de Registro CORRIGIDO -->
-<form method="POST" action="{{ url_for('register') }}">
-    
-    
-    <div class="form-group">
-        <label for="username" class="form-label">Nome de Usuário</label>
-        <div class="input-icon">
-            <input type="text" id="username" name="username" class="form-control" 
-                   placeholder="Escolha um nome de usuário" required value="{{ request.form.username or '' }}">
-            <i class="fas fa-user"></i>
-        </div>
-    </div>
-
-    <div class="form-group">
-        <label for="email" class="form-label">E-mail</label>
-        <div class="input-icon">
-            <input type="email" id="email" name="email" class="form-control" 
-                   placeholder="seu@email.com" required value="{{ request.form.email or '' }}">
-            <i class="fas fa-envelope"></i>
-        </div>
-    </div>
-
-    <div class="form-group">
-        <label for="password" class="form-label">Senha</label>
-        <div class="input-icon">
-            <input type="password" id="password" name="password" class="form-control" 
-                   placeholder="••••••••" required minlength="6">
-            <i class="fas fa-lock"></i>
-        </div>
-        <small class="text-muted">Mínimo 6 caracteres</small>
-    </div>
-
-    <button type="submit" class="btn-submit" style="background: linear-gradient(135deg, var(--d1000-green), #449d44);">
-        <i class="fas fa-user-plus"></i> 
+        <!-- Aviso para primeiro usuário -->
         {% if is_first_user %}
-            Criar Conta de Administrador
-        {% else %}
-            Criar Conta
+        <div class="admin-notice">
+            <i class="fas fa-crown"></i>
+            <strong>Atenção:</strong> Esta será a conta de administrador principal do sistema.
+        </div>
         {% endif %}
-    </button>
-</form>
+
+        <!-- Formulário de Registro -->
+        <form method="POST" action="{{ url_for('register') }}" id="registerForm" novalidate>
+            <!-- CSRF Token (adicione conforme sua configuração Flask) -->
+            {% if form %}
+                {{ form.csrf_token }}
+            {% endif %}
+            
+            <!-- Nome de Usuário -->
+            <div class="form-group">
+                <label for="username" class="form-label">
+                    <i class="fas fa-user"></i> Nome de Usuário
+                </label>
+                <div class="input-icon">
+                    <input 
+                        type="text" 
+                        id="username" 
+                        name="username" 
+                        class="form-control" 
+                        placeholder="Escolha um nome de usuário" 
+                        required 
+                        minlength="3"
+                        maxlength="50"
+                        pattern="[a-zA-Z0-9_]+"
+                        title="Apenas letras, números e underscore"
+                        aria-label="Nome de usuário"
+                        value="{{ request.form.username or '' }}"
+                        autocomplete="username">
+                    <i class="fas fa-user input-icon-left" aria-hidden="true"></i>
+                </div>
+                <small class="text-muted">Mínimo 3 caracteres (letras, números e _)</small>
+            </div>
+
+            <!-- E-mail -->
+            <div class="form-group">
+                <label for="email" class="form-label">
+                    <i class="fas fa-envelope"></i> E-mail
+                </label>
+                <div class="input-icon">
+                    <input 
+                        type="email" 
+                        id="email" 
+                        name="email" 
+                        class="form-control" 
+                        placeholder="seu@email.com" 
+                        required 
+                        pattern="[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,}$"
+                        title="Digite um e-mail válido"
+                        aria-label="Endereço de e-mail"
+                        value="{{ request.form.email or '' }}"
+                        autocomplete="email">
+                    <i class="fas fa-envelope input-icon-left" aria-hidden="true"></i>
+                </div>
+                <small class="text-muted">Utilize um e-mail válido e ativo</small>
+            </div>
+
+            <!-- Senha -->
+            <div class="form-group">
+                <label for="password" class="form-label">
+                    <i class="fas fa-lock"></i> Senha
+                </label>
+                <div class="input-icon password-wrapper">
+                    <input 
+                        type="password" 
+                        id="password" 
+                        name="password" 
+                        class="form-control" 
+                        placeholder="••••••••" 
+                        required 
+                        minlength="6"
+                        maxlength="100"
+                        aria-label="Senha"
+                        autocomplete="new-password">
+                    <i class="fas fa-lock input-icon-left" aria-hidden="true"></i>
+                    <button type="button" class="toggle-password" onclick="togglePassword()" aria-label="Mostrar/Ocultar senha">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                </div>
+                <small class="text-muted">Mínimo 6 caracteres</small>
+                
+                <!-- Indicador de força da senha -->
+                <div class="password-strength" id="passwordStrength" style="display: none;">
+                    <div class="strength-bar">
+                        <div class="strength-bar-fill" id="strengthBar"></div>
+                    </div>
+                    <small id="strengthText"></small>
+                </div>
+            </div>
+
+            <!-- Confirmar Senha -->
+            <div class="form-group">
+                <label for="confirm_password" class="form-label">
+                    <i class="fas fa-lock"></i> Confirmar Senha
+                </label>
+                <div class="input-icon">
+                    <input 
+                        type="password" 
+                        id="confirm_password" 
+                        name="confirm_password" 
+                        class="form-control" 
+                        placeholder="••••••••" 
+                        required 
+                        minlength="6"
+                        aria-label="Confirmar senha"
+                        autocomplete="new-password">
+                    <i class="fas fa-lock input-icon-left" aria-hidden="true"></i>
+                </div>
+                <small class="text-muted" id="passwordMatch"></small>
+            </div>
+
+            <!-- Botão de Submit -->
+            <button type="submit" class="btn-submit" id="submitBtn">
+                <i class="fas fa-user-plus"></i> 
+                {% if is_first_user %}
+                    Criar Conta de Administrador
+                {% else %}
+                    Criar Conta
+                {% endif %}
+            </button>
+        </form>
 
         <div class="form-footer">
             <p>Já tem uma conta? <a href="{{ url_for('login') }}">Faça o login</a></p>
         </div>
     </div>
 </div>
+
+<!-- Formas de fundo animadas -->
+<div class="background-shapes">
+    <div></div>
+    <div></div>
+    <div></div>
+    <div></div>
+    <div></div>
+    <div></div>
+    <div></div>
+    <div></div>
+    <div></div>
+    <div></div>
+</div>
 {% endblock %}
 
 {% block extra_css %}
 <style>
-    /* Estilos do login.html para o container e fundo */
+    /* ==================== VARIÁVEIS CSS ==================== */
     :root {
         --d1000-yellow: #F7B500;
         --d1000-orange: #E85D2A;
         --d1000-green: #5CB85C;
         --d1000-blue: #0275D8;
         --d1000-dark: #2C3E50;
-        --shadow-lg: 0 10px 40px rgba(0,0,0,0.15 );
+        --d1000-red: #D9534F;
+        --shadow-lg: 0 10px 40px rgba(0,0,0,0.15);
     }
 
+    /* ==================== RESET E BASE ==================== */
     * {
         margin: 0;
         padding: 0;
         box-sizing: border-box;
-        font-family: 'Inter', sans-serif;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     }
 
     body {
@@ -133,18 +236,20 @@ para Recrutamento</p>
         align-items: center;
         min-height: 100vh;
         background: linear-gradient(135deg, #1d2b3a, #2C3E50);
-        overflow: hidden;
+        overflow-x: hidden;
         position: relative;
     }
 
+    /* ==================== ANIMAÇÃO DE FUNDO ==================== */
     .background-shapes {
-        position: absolute;
+        position: fixed;
         top: 0;
         left: 0;
         width: 100%;
         height: 100%;
         overflow: hidden;
         z-index: 0;
+        pointer-events: none;
     }
 
     .background-shapes div {
@@ -157,6 +262,7 @@ para Recrutamento</p>
         animation: animate 25s linear infinite;
         border-radius: 8px;
     }
+
     .background-shapes div:nth-child(1) { left: 25%; width: 80px; height: 80px; animation-delay: 0s; }
     .background-shapes div:nth-child(2) { left: 10%; width: 20px; height: 20px; animation-delay: 2s; animation-duration: 12s; }
     .background-shapes div:nth-child(3) { left: 70%; width: 20px; height: 20px; animation-delay: 4s; }
@@ -173,6 +279,7 @@ para Recrutamento</p>
         100% { transform: translateY(-120vh) rotate(720deg); opacity: 0; }
     }
 
+    /* ==================== CONTAINER PRINCIPAL ==================== */
     .login-container {
         position: relative;
         z-index: 1;
@@ -182,14 +289,26 @@ para Recrutamento</p>
         box-shadow: var(--shadow-lg);
         overflow: hidden;
         width: 90%;
-        height: 85vh;
+        max-height: 90vh;
         max-width: 1100px;
+        animation: slideIn 0.5s ease-out;
     }
 
-    /* Lado Esquerdo */
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateY(30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* ==================== LADO ESQUERDO (MARCA) ==================== */
     .brand-side {
-        flex: 0 0 50%;
-        background-color: var(--d1000-dark);
+        flex: 0 0 45%;
+        background: linear-gradient(135deg, var(--d1000-dark), #1a252f);
         color: white;
         display: flex;
         flex-direction: column;
@@ -197,60 +316,468 @@ para Recrutamento</p>
         align-items: center;
         padding: 3rem;
         text-align: center;
+        position: relative;
+        overflow: hidden;
     }
-    .brand-logo-container { margin-bottom: 2rem; }
-    .brand-logo-container img { max-width: 250px; height: auto; }
-    .brand-side .slogan { font-size: 2.2rem; font-weight: 700; line-height: 1.2; margin-bottom: 1rem; }
-    .brand-side .subtitle { font-size: 1.1rem; opacity: 0.8; max-width: 90%; }
 
-    /* Lado Direito */
+    .brand-side::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+        animation: pulse 15s infinite;
+    }
+
+    @keyframes pulse {
+        0%, 100% { transform: scale(1); opacity: 0.5; }
+        50% { transform: scale(1.1); opacity: 0.8; }
+    }
+
+    .brand-logo-container { 
+        margin-bottom: 2rem; 
+        z-index: 1;
+    }
+
+    .brand-logo-container img { 
+        max-width: 220px; 
+        height: auto;
+        filter: drop-shadow(0 10px 20px rgba(0,0,0,0.3));
+        transition: transform 0.3s ease;
+    }
+
+    .brand-logo-container img:hover {
+        transform: scale(1.05);
+    }
+
+    .brand-text-container {
+        z-index: 1;
+    }
+
+    .brand-side .slogan { 
+        font-size: 2rem; 
+        font-weight: 700; 
+        line-height: 1.3; 
+        margin-bottom: 1rem;
+        text-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    }
+
+    .brand-side .subtitle { 
+        font-size: 1.05rem; 
+        opacity: 0.9; 
+        max-width: 90%;
+        line-height: 1.6;
+    }
+
+    /* ==================== LADO DIREITO (FORMULÁRIO) ==================== */
     .form-side {
         flex: 1;
-        padding: 2rem 3rem; /* Ajustado padding vertical */
+        padding: 2.5rem 3rem;
         display: flex;
         flex-direction: column;
-        justify-content: center;
+        justify-content: flex-start;
         background: #fff;
-        overflow-y: auto; /* Permite rolagem se o conteúdo for grande */
+        overflow-y: auto;
     }
-    
-    /* Estilo para o header do agente */
+
+    .form-side::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    .form-side::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 10px;
+    }
+
+    .form-side::-webkit-scrollbar-thumb {
+        background: #888;
+        border-radius: 10px;
+    }
+
+    .form-side::-webkit-scrollbar-thumb:hover {
+        background: #555;
+    }
+
+    /* ==================== HEADER DO AGENTE ==================== */
     .agent-header {
         text-align: center;
-        margin-bottom: 1rem;
+        margin-bottom: 1.5rem;
     }
+
     .agent-header img {
-        max-width: 150px; /* Tamanho da imagem do agente */
+        max-width: 120px;
         height: auto;
         border-radius: 50%;
-        box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        box-shadow: 0 5px 20px rgba(0,0,0,0.15);
+        border: 4px solid #f8f9fa;
+        transition: transform 0.3s ease;
     }
 
-    .form-header h2 { font-size: 1.75rem; color: var(--d1000-dark); margin-bottom: 0.5rem; font-weight: 700; }
-    .form-header p { color: #6b7280; font-size: 0.9rem; }
-    .form-group { margin-bottom: 1.2rem; } /* Espaçamento ajustado */
-    .form-label { display: block; margin-bottom: 0.5rem; font-weight: 600; color: var(--d1000-dark); font-size: 0.875rem; }
-    .input-icon { position: relative; }
-    .input-icon i { position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: #9ca3af; transition: color 0.2s ease; }
-    .form-control { width: 100%; padding: 0.875rem 1rem 0.875rem 3rem; border: 1px solid #d1d5db; border-radius: 8px; font-size: 0.9rem; transition: all 0.2s ease; }
-    .form-control:focus { outline: none; border-color: var(--d1000-blue); box-shadow: 0 0 0 3px rgba(2, 117, 216, 0.1); }
-    .form-control:focus ~ i { color: var(--d1000-blue); }
-    .btn-submit { width: 100%; padding: 1rem; border: none; border-radius: 8px; color: white; font-size: 1rem; font-weight: 600; cursor: pointer; transition: all 0.3s ease; box-shadow: 0 4px 12px rgba(92, 184, 92, 0.3); display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
-    .btn-submit:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(92, 184, 92, 0.4); }
-    .form-footer { margin-top: 1.5rem; text-align: center; font-size: 0.875rem; }
-    .form-footer a { color: var(--d1000-blue); text-decoration: none; font-weight: 600; }
-    .form-footer a:hover { text-decoration: underline; }
-    .alert-danger { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; border-radius: 8px; padding: 1rem; margin-bottom: 1.5rem; font-size: 0.9rem; }
-    .alert-success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; border-radius: 8px; padding: 1rem; margin-bottom: 1.5rem; font-size: 0.9rem; }
-    .admin-notice { background: #fff3cd; border: 1px solid #ffeeba; border-radius: 8px; padding: 1rem; margin-bottom: 1.5rem; font-size: 0.9rem; color: #856404; }
-    .text-muted { color: #6c757d !important; font-size: 0.8rem; }
+    .agent-header img:hover {
+        transform: scale(1.05) rotate(5deg);
+    }
 
-    /* Responsividade */
+    /* ==================== HEADER DO FORMULÁRIO ==================== */
+    .form-header h2 { 
+        font-size: 1.75rem; 
+        color: var(--d1000-dark); 
+        margin-bottom: 0.5rem; 
+        font-weight: 700;
+    }
+
+    .form-header p { 
+        color: #6b7280; 
+        font-size: 0.9rem;
+        margin-bottom: 1.5rem;
+    }
+
+    /* ==================== ALERTAS ==================== */
+    .alert-danger,
+    .alert-success,
+    .alert-warning {
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 1.5rem;
+        font-size: 0.9rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        animation: slideDown 0.3s ease-out;
+    }
+
+    @keyframes slideDown {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .alert-danger {
+        background-color: #fee;
+        color: #c33;
+        border: 1px solid #fcc;
+    }
+
+    .alert-success {
+        background-color: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+    }
+
+    .alert-warning {
+        background-color: #fff3cd;
+        color: #856404;
+        border: 1px solid #ffeeba;
+    }
+
+    .admin-notice {
+        background: linear-gradient(135deg, #fff3cd, #ffe8a1);
+        border: 2px solid #ffc107;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 1.5rem;
+        font-size: 0.9rem;
+        color: #856404;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .admin-notice i {
+        color: #ffc107;
+        font-size: 1.2rem;
+    }
+
+    /* ==================== FORMULÁRIO ==================== */
+    .form-group { 
+        margin-bottom: 1.3rem;
+    }
+
+    .form-label { 
+        display: block; 
+        margin-bottom: 0.5rem; 
+        font-weight: 600; 
+        color: var(--d1000-dark); 
+        font-size: 0.875rem;
+    }
+
+    .form-label i {
+        margin-right: 0.3rem;
+        color: var(--d1000-blue);
+    }
+
+   .input-icon { 
+        position: relative;
+    }
+
+    .input-icon-left { 
+        position: absolute; 
+        left: 1rem; 
+        top: 50%; 
+        transform: translateY(-50%); 
+        color: #9ca3af; 
+        transition: color 0.2s ease;
+        pointer-events: none;
+    }
+
+    .form-control { 
+        width: 100%; 
+        padding: 0.875rem 1rem 0.875rem 3rem; 
+        border: 2px solid #e5e7eb; 
+        border-radius: 8px; 
+        font-size: 0.95rem; 
+        transition: all 0.3s ease;
+        background: #fafafa;
+    }
+
+    .form-control:hover {
+        border-color: #d1d5db;
+        background: #fff;
+    }
+
+    .form-control:focus { 
+        outline: none; 
+        border-color: var(--d1000-blue); 
+        box-shadow: 0 0 0 3px rgba(2, 117, 216, 0.1);
+        background: #fff;
+    }
+
+    .form-control:focus ~ .input-icon-left { 
+        color: var(--d1000-blue);
+    }
+
+    .form-control.is-valid {
+        border-color: var(--d1000-green);
+    }
+
+    .form-control.is-invalid {
+        border-color: var(--d1000-red);
+    }
+
+    /* ==================== CAMPO DE SENHA ==================== */
+    .password-wrapper {
+        position: relative;
+    }
+
+    .toggle-password {
+        position: absolute;
+        right: 1rem;
+        top: 50%;
+        transform: translateY(-50%);
+        background: none;
+        border: none;
+        color: #9ca3af;
+        cursor: pointer;
+        padding: 0.5rem;
+        transition: color 0.2s ease;
+        z-index: 10;
+    }
+
+    .toggle-password:hover {
+        color: var(--d1000-blue);
+    }
+
+    .toggle-password:focus {
+        outline: 2px solid var(--d1000-blue);
+        outline-offset: 2px;
+        border-radius: 4px;
+    }
+
+    /* ==================== INDICADOR DE FORÇA DA SENHA ==================== */
+    .password-strength {
+        margin-top: 0.5rem;
+    }
+
+    .strength-bar {
+        width: 100%;
+        height: 6px;
+        background: #e5e7eb;
+        border-radius: 3px;
+        overflow: hidden;
+        margin-bottom: 0.3rem;
+    }
+
+    .strength-bar-fill {
+        height: 100%;
+        transition: all 0.3s ease;
+        border-radius: 3px;
+    }
+
+    .strength-weak { background: #dc3545; width: 33%; }
+    .strength-medium { background: #ffc107; width: 66%; }
+    .strength-strong { background: #28a745; width: 100%; }
+
+    #strengthText {
+        font-size: 0.8rem;
+        font-weight: 600;
+    }
+
+    /* ==================== BOTÃO DE SUBMIT ==================== */
+    .btn-submit { 
+        width: 100%; 
+        padding: 1rem; 
+        border: none; 
+        border-radius: 8px; 
+        background: linear-gradient(135deg, var(--d1000-green), #449d44);
+        color: white; 
+        font-size: 1rem; 
+        font-weight: 600; 
+        cursor: pointer; 
+        transition: all 0.3s ease; 
+        box-shadow: 0 4px 12px rgba(92, 184, 92, 0.3); 
+        display: flex; 
+        align-items: center; 
+        justify-content: center; 
+        gap: 0.5rem;
+        margin-top: 1.5rem;
+    }
+
+    .btn-submit:hover { 
+        transform: translateY(-2px); 
+        box-shadow: 0 6px 20px rgba(92, 184, 92, 0.4);
+    }
+
+    .btn-submit:active {
+        transform: translateY(0);
+    }
+
+    .btn-submit:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+    }
+
+    /* ==================== FOOTER DO FORMULÁRIO ==================== */
+    .form-footer { 
+        margin-top: 1.5rem; 
+        text-align: center; 
+        font-size: 0.875rem;
+        padding-top: 1rem;
+        border-top: 1px solid #e5e7eb;
+    }
+
+    .form-footer a { 
+        color: var(--d1000-blue); 
+        text-decoration: none; 
+        font-weight: 600;
+        transition: color 0.2s ease;
+    }
+
+    .form-footer a:hover { 
+        text-decoration: underline;
+        color: #0056b3;
+    }
+
+    /* ==================== TEXTO AUXILIAR ==================== */
+    .text-muted { 
+        color: #6c757d !important; 
+        font-size: 0.8rem;
+        display: block;
+        margin-top: 0.3rem;
+    }
+
+    .text-success {
+        color: var(--d1000-green) !important;
+    }
+
+    .text-danger {
+        color: var(--d1000-red) !important;
+    }
+
+    /* ==================== RESPONSIVIDADE ==================== */
     @media (max-width: 900px) {
-        body { align-items: flex-start; background: #fff; }
-        .login-container { flex-direction: column; height: auto; width: 100%; border-radius: 0; box-shadow: none; }
-        .brand-side { display: none; }
-        .form-side { padding: 2rem; }
+        body { 
+            align-items: flex-start; 
+            background: #fff;
+            padding: 0;
+        }
+
+        .login-container { 
+            flex-direction: column; 
+            height: auto; 
+            width: 100%; 
+            border-radius: 0; 
+            box-shadow: none;
+            max-height: none;
+        }
+
+        .brand-side { 
+            display: none;
+        }
+
+        .form-side { 
+            padding: 2rem 1.5rem;
+        }
+
+        .agent-header img {
+            max-width: 100px;
+        }
+
+        .form-header h2 {
+            font-size: 1.5rem;
+        }
+
+        .brand-side .slogan {
+            font-size: 1.5rem;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .form-side {
+            padding: 1.5rem 1rem;
+        }
+
+        .form-header h2 {
+            font-size: 1.3rem;
+        }
+
+        .btn-submit {
+            font-size: 0.95rem;
+            padding: 0.875rem;
+        }
+    }
+
+    /* ==================== ACESSIBILIDADE ==================== */
+    .form-control:focus-visible {
+        outline: 2px solid var(--d1000-blue);
+        outline-offset: 2px;
+    }
+
+    button:focus-visible {
+        outline: 2px solid var(--d1000-blue);
+        outline-offset: 2px;
+    }
+
+    /* ==================== ANIMAÇÕES DE LOADING ==================== */
+    .btn-submit.loading {
+        pointer-events: none;
+        position: relative;
+        color: transparent;
+    }
+
+    .btn-submit.loading::after {
+        content: '';
+        position: absolute;
+        width: 20px;
+        height: 20px;
+        top: 50%;
+        left: 50%;
+        margin-left: -10px;
+        margin-top: -10px;
+        border: 3px solid rgba(255,255,255,0.3);
+        border-radius: 50%;
+        border-top-color: white;
+        animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+        to { transform: rotate(360deg); }
     }
 </style>
 {% endblock %}
@@ -258,28 +785,212 @@ para Recrutamento</p>
 {% block extra_js %}
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        // ==================== ELEMENTOS ====================
+        const form = document.getElementById('registerForm');
+        const username = document.getElementById('username');
+        const email = document.getElementById('email');
+        const password = document.getElementById('password');
+        const confirmPassword = document.getElementById('confirm_password');
+        const submitBtn = document.getElementById('submitBtn');
+        const strengthIndicator = document.getElementById('passwordStrength');
+        const strengthBar = document.getElementById('strengthBar');
+        const strengthText = document.getElementById('strengthText');
+        const passwordMatch = document.getElementById('passwordMatch');
+
         // Focar no primeiro campo
-        document.getElementById('username').focus();
-        
-        // Validação básica
-        const form = document.querySelector('form');
-        form.addEventListener('submit', function(e) {
-            const username = document.getElementById('username').value;
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
+        username.focus();
+
+        // ==================== VALIDAÇÃO DE USERNAME ====================
+        username.addEventListener('input', function() {
+            const value = this.value.trim();
             
-            if (!username || !email || !password) {
-                e.preventDefault();
-                alert('Por favor, preencha todos os campos.');
-                return;
-            }
-            
-            if (password.length < 6) {
-                e.preventDefault();
-                alert('A senha deve ter pelo menos 6 caracteres.');
-                return;
+            if (value.length < 3) {
+                this.classList.remove('is-valid');
+                this.classList.add('is-invalid');
+            } else if (!/^[a-zA-Z0-9_]+$/.test(value)) {
+                this.classList.remove('is-valid');
+                this.classList.add('is-invalid');
+            } else {
+                this.classList.remove('is-invalid');
+                this.classList.add('is-valid');
             }
         });
+
+        // ==================== VALIDAÇÃO DE EMAIL ====================
+        email.addEventListener('input', function() {
+            const value = this.value.trim();
+            const emailRegex = /^[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,}$/i;
+            
+            if (emailRegex.test(value)) {
+                this.classList.remove('is-invalid');
+                this.classList.add('is-valid');
+            } else {
+                this.classList.remove('is-valid');
+                this.classList.add('is-invalid');
+            }
+        });
+
+        // ==================== INDICADOR DE FORÇA DA SENHA ====================
+        password.addEventListener('input', function() {
+            const value = this.value;
+            
+            if (value.length > 0) {
+                strengthIndicator.style.display = 'block';
+                
+                let strength = 0;
+                
+                // Critérios de força
+                if (value.length >= 6) strength++;
+                if (value.length >= 10) strength++;
+                if (/[a-z]/.test(value) && /[A-Z]/.test(value)) strength++;
+                if (/\d/.test(value)) strength++;
+                if (/[^a-zA-Z0-9]/.test(value)) strength++;
+                
+                // Atualizar barra e texto
+                strengthBar.className = 'strength-bar-fill';
+                
+                if (strength <= 2) {
+                    strengthBar.classList.add('strength-weak');
+                    strengthText.textContent = 'Senha fraca';
+                    strengthText.style.color = '#dc3545';
+                    this.classList.add('is-invalid');
+                    this.classList.remove('is-valid');
+                } else if (strength <= 3) {
+                    strengthBar.classList.add('strength-medium');
+                    strengthText.textContent = 'Senha média';
+                    strengthText.style.color = '#ffc107';
+                    this.classList.remove('is-invalid');
+                    this.classList.remove('is-valid');
+                } else {
+                    strengthBar.classList.add('strength-strong');
+                    strengthText.textContent = 'Senha forte';
+                    strengthText.style.color = '#28a745';
+                    this.classList.remove('is-invalid');
+                    this.classList.add('is-valid');
+                }
+            } else {
+                strengthIndicator.style.display = 'none';
+                this.classList.remove('is-valid', 'is-invalid');
+            }
+            
+            // Verificar match com confirmação
+            checkPasswordMatch();
+        });
+
+        // ==================== VERIFICAR SENHAS IGUAIS ====================
+        function checkPasswordMatch() {
+            if (confirmPassword.value.length > 0) {
+                if (password.value === confirmPassword.value) {
+                    confirmPassword.classList.remove('is-invalid');
+                    confirmPassword.classList.add('is-valid');
+                    passwordMatch.textContent = '✓ As senhas coincidem';
+                    passwordMatch.classList.add('text-success');
+                    passwordMatch.classList.remove('text-danger');
+                } else {
+                    confirmPassword.classList.remove('is-valid');
+                    confirmPassword.classList.add('is-invalid');
+                    passwordMatch.textContent = '✗ As senhas não coincidem';
+                    passwordMatch.classList.add('text-danger');
+                    passwordMatch.classList.remove('text-success');
+                }
+            }
+        }
+
+        confirmPassword.addEventListener('input', checkPasswordMatch);
+
+        // ==================== VALIDAÇÃO DO FORMULÁRIO ====================
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            // Limpar mensagens anteriores
+            const alerts = document.querySelectorAll('.alert-danger, .alert-success');
+            alerts.forEach(alert => alert.remove());
+            
+            // Validações
+            const usernameValue = username.value.trim();
+            const emailValue = email.value.trim();
+            const passwordValue = password.value;
+            const confirmPasswordValue = confirmPassword.value;
+            
+            let errors = [];
+            
+            // Validar username
+            if (usernameValue.length < 3) {
+                errors.push('O nome de usuário deve ter pelo menos 3 caracteres.');
+                username.classList.add('is-invalid');
+            }
+            
+            if (!/^[a-zA-Z0-9_]+$/.test(usernameValue)) {
+                errors.push('O nome de usuário deve conter apenas letras, números e underscore.');
+                username.classList.add('is-invalid');
+            }
+            
+            // Validar email
+            const emailRegex = /^[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,}$/i;
+            if (!emailRegex.test(emailValue)) {
+                errors.push('Digite um e-mail válido.');
+                email.classList.add('is-invalid');
+            }
+            
+            // Validar senha
+            if (passwordValue.length < 6) {
+                errors.push('A senha deve ter pelo menos 6 caracteres.');
+                password.classList.add('is-invalid');
+            }
+            
+            // Validar confirmação de senha
+            if (passwordValue !== confirmPasswordValue) {
+                errors.push('As senhas não coincidem.');
+                confirmPassword.classList.add('is-invalid');
+            }
+            
+            // Se houver erros, exibir e parar
+            if (errors.length > 0) {
+                const errorDiv = document.createElement('div');
+                errorDiv.className = 'alert-danger';
+                errorDiv.innerHTML = '<i class="fas fa-exclamation-triangle"></i> ' + errors.join('<br>');
+                form.insertBefore(errorDiv, form.firstChild);
+                
+                // Scroll para o topo
+                errorDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                return false;
+            }
+            
+            // Adicionar estado de loading
+            submitBtn.classList.add('loading');
+            submitBtn.disabled = true;
+            
+            // Submeter o formulário
+            form.submit();
+        });
+
+        // ==================== REMOVER CLASSES DE ERRO AO DIGITAR ====================
+        [username, email, password, confirmPassword].forEach(input => {
+            input.addEventListener('focus', function() {
+                this.classList.remove('is-invalid');
+            });
+        });
     });
+
+    // ==================== FUNÇÃO TOGGLE PASSWORD ====================
+    function togglePassword() {
+        const passwordInput = document.getElementById('password');
+        const icon = document.querySelector('.toggle-password i');
+        
+        if (passwordInput.type === 'password') {
+            passwordInput.type = 'text';
+            icon.classList.remove('fa-eye');
+            icon.classList.add('fa-eye-slash');
+        } else {
+            passwordInput.type = 'password';
+            icon.classList.remove('fa-eye-slash');
+            icon.classList.add('fa-eye');
+        }
+    }
+
+    // ==================== PREVENIR RESUBMIT ====================
+    if (window.history.replaceState) {
+        window.history.replaceState(null, null, window.location.href);
+    }
 </script>
 {% endblock %}
