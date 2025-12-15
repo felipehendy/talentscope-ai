@@ -265,9 +265,8 @@ def register():
     user_count = User.query.count()
     
     # Bloquear registro se já existem usuários e não é admin
-    if user_count > 0 and not current_user.is_authenticated:
-        flash('Registro desabilitado. Faça login ou contate o administrador.', 'warning')
-        return redirect(url_for('login'))
+    # Cadastro sempre permitido
+    pass
     
     if current_user.is_authenticated and not current_user.is_admin and user_count > 0:
         flash('Apenas administradores podem criar novos usuários.', 'warning')
