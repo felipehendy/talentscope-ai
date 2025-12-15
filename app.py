@@ -57,6 +57,15 @@ login_manager.login_view = 'login'
 ai_analyzer = AIAnalyzer()
 logger.info(f"🔧 Provider configurado: {ai_analyzer.get_current_provider()}")
 
+app.config.update(
+    SESSION_COOKIE_SECURE=True,
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE='Lax'
+)
+
+
+
+
 # ==================== FILTROS JINJA ====================
 @app.template_filter('whatsapp_link')
 def whatsapp_link(phone):
@@ -262,7 +271,11 @@ def login():
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     """Registro de usuários - público"""
-
+    
+    # 🔥 CORREÇÃO: Definir user_count ANTES de usar
+    user_count = User.query.count()
+    is_first_user = (user_count == 0)
+    
     if current_user.is_authenticated:
         return redirect(url_for('dashboard'))
 
@@ -272,47 +285,45 @@ def register():
         password = request.form.get('password', '')
         confirm_password = request.form.get('confirm_password', '')
         
-         # ==================== VALIDAÇÕES ====================
+        # ==================== VALIDAÇÕES ====================
         
         # 1️⃣ Campos vazios
         if not username or not email or not password or not confirm_password:
             flash('❌ Todos os campos são obrigatórios!', 'danger')
-            return render_template('register.html', is_first_user=(user_count == 0))
+            return render_template('register.html', is_first_user=is_first_user)
         
         # 2️⃣ Validar username
         valid, error = validate_username(username)
         if not valid:
             flash(f'❌ {error}', 'danger')
-            return render_template('register.html', is_first_user=(user_count == 0))
+            return render_template('register.html', is_first_user=is_first_user)
         
         # 3️⃣ Validar email
         if not validate_email(email):
             flash('❌ Email inválido! Use o formato: exemplo@email.com', 'danger')
-            return render_template('register.html', is_first_user=(user_count == 0))
+            return render_template('register.html', is_first_user=is_first_user)
         
         # 4️⃣ Validar senha
         valid, error = validate_password(password)
         if not valid:
             flash(f'❌ {error}', 'danger')
-            return render_template('register.html', is_first_user=(user_count == 0))
+            return render_template('register.html', is_first_user=is_first_user)
         
-        # 5️⃣ NOVO: Verificar se as senhas coincidem
+        # 5️⃣ Verificar se as senhas coincidem
         if password != confirm_password:
             flash('❌ As senhas não coincidem!', 'danger')
-            return render_template('register.html', is_first_user=(user_count == 0))
+            return render_template('register.html', is_first_user=is_first_user)
         
         # 6️⃣ Verificar duplicatas
         if User.query.filter_by(username=username).first():
             flash('❌ Nome de usuário já existe!', 'danger')
-            return render_template('register.html', is_first_user=(user_count == 0))
+            return render_template('register.html', is_first_user=is_first_user)
         
         if User.query.filter_by(email=email).first():
             flash('❌ Email já cadastrado!', 'danger')
-            return render_template('register.html', is_first_user=(user_count == 0))
+            return render_template('register.html', is_first_user=is_first_user)
         
         # ==================== CRIAR USUÁRIO ====================
-        is_first_user = (user_count == 0)
-        
         user = User(
             username=username,
             email=email,
@@ -337,7 +348,7 @@ def register():
             logger.error(f"❌ Erro ao criar usuário: {e}")
             flash('❌ Erro ao criar conta. Tente novamente.', 'danger')
     
-    is_first_user = (user_count == 0)
+    # GET request - exibir formulário
     return render_template('register.html', is_first_user=is_first_user)
 
 @app.route('/logout')
