@@ -13,6 +13,8 @@ from urllib.parse import quote
 from sqlalchemy import text
 import logging
 import re
+import sys
+import io
 
 # Importar validadores
 from utils.validators import (
@@ -55,7 +57,7 @@ login_manager.login_view = 'login'
 
 # Inicializar IA
 ai_analyzer = AIAnalyzer()
-logger.info(f"🔧 Provider configurado: {ai_analyzer.get_current_provider()}")
+logger.info(f" Provider configurado: {ai_analyzer.get_current_provider()}")
 
 app.config.update(
     SESSION_COOKIE_SECURE=True,
@@ -161,10 +163,10 @@ def safe_delete_file(filepath):
     try:
         if filepath and os.path.exists(filepath):
             os.remove(filepath)
-            logger.info(f"✅ Arquivo deletado: {filepath}")
+            logger.info(f"[OK] Arquivo deletado: {filepath}")
             return True
     except Exception as e:
-        logger.error(f"❌ Erro ao deletar arquivo {filepath}: {e}")
+        logger.error(f"[ERROR] Erro ao deletar arquivo {filepath}: {e}")
     return False
 
 def extract_text_from_pdf(file_path):
@@ -241,6 +243,275 @@ def extract_candidate_info(resume_text, filename):
     }
 
 # ==================== ROTAS DE AUTENTICAÇÃO ====================
+
+# ==================== ROTAS DO CHATBOT ====================
+
+@app.route('/chatbot')
+@login_required
+def chatbot_page():
+    """Página do Chatbot Tess"""
+    # Buscar dados para contexto inicial
+    total_candidates = Candidate.query.filter(
+        Candidate.ai_score != None,
+        Candidate.ai_score > 0
+    ).count()
+    
+    total_jobs = Job.query.filter_by(status='active').count()
+    
+    return render_template('chatbot.html', 
+                         total_candidates=total_candidates,
+                         total_jobs=total_jobs)
+
+
+@app.route('/api/chatbot/context', methods=['GET'])
+@login_required
+def chatbot_context():
+    """Retorna contexto (candidatos e vagas) para o chatbot"""
+    try:
+        # Buscar candidatos com score
+        candidates = Candidate.query.filter(
+            Candidate.ai_score != None,
+            Candidate.ai_score > 0
+        ).all()
+        
+        jobs = Job.query.filter_by(status='active').all()
+        
+        candidates_data = []
+        for c in candidates:
+            try:
+                job = db.session.get(Job, c.job_id) if c.job_id else None
+                
+                # Parse da análise IA
+                analysis = {}
+                if c.ai_analysis:
+                    try:
+                        analysis = json.loads(c.ai_analysis)
+                    except:
+                        analysis = {}
+                
+                candidates_data.append({
+                    'id': c.id,
+                    'name': c.name or 'Sem nome',
+                    'email': c.email or '',
+                    'phone': c.phone or '',
+                    'job_title': job.title if job else 'Sem vaga',
+                    'job_id': c.job_id,
+                    'score': float(c.ai_score or 0),
+                    'status': c.status,
+                    
+                    # Dados da análise IA
+                    'strengths': analysis.get('strengths', []),
+                    'weaknesses': analysis.get('weaknesses', []),
+                    'recommendation': analysis.get('recommendation', ''),
+                    'summary': analysis.get('summary', ''),
+                    'technical_skills': analysis.get('technical_skills', []),
+                    'experience_level': analysis.get('experience_level', 'Não especificado'),
+                    
+                    'created_at': c.created_at.strftime('%d/%m/%Y') if c.created_at else ''
+                })
+            except Exception as e:
+                logger.error(f"[ERROR] Erro ao processar candidato {c.id}: {e}")
+                continue
+        
+        jobs_data = []
+        for j in jobs:
+            try:
+                candidates_count = Candidate.query.filter_by(job_id=j.id).count()
+                jobs_data.append({
+                    'id': j.id,
+                    'title': j.title,
+                    'description': j.description or '',
+                    'requirements': j.requirements or '',
+                    'status': j.status,
+                    'candidates_count': candidates_count,
+                    'created_at': j.created_at.strftime('%d/%m/%Y') if j.created_at else ''
+                })
+            except Exception as e:
+                logger.error(f"[ERROR] Erro ao processar vaga {j.id}: {e}")
+                continue
+        
+        logger.info(f"[OK] Contexto carregado: {len(candidates_data)} candidatos, {len(jobs_data)} vagas")
+        
+        return jsonify({
+            'success': True,
+            'candidates': candidates_data,
+            'jobs': jobs_data
+        })
+        
+    except Exception as e:
+        logger.error(f"[ERROR] Erro ao buscar contexto: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False, 
+            'error': str(e),
+            'candidates': [],
+            'jobs': []
+        }), 200
+
+
+@app.route('/api/chatbot/query', methods=['POST'])
+@login_required
+def chatbot_query():
+    """Endpoint para processar perguntas do chatbot"""
+    try:
+        data = request.get_json()
+        user_query = data.get('query', '').strip()
+        
+        if not user_query:
+            return jsonify({'error': 'Query vazia'}), 400
+        
+        logger.info(f"[CHAT] Pergunta recebida: {user_query}")
+        
+        # Buscar contexto (candidatos e vagas)
+        candidates = Candidate.query.filter(
+            Candidate.ai_score != None,
+            Candidate.ai_score > 0
+        ).all()
+        
+        jobs = Job.query.filter_by(status='active').all()
+        
+        # Montar contexto dos candidatos
+        candidates_context = []
+        for c in candidates:
+            try:
+                job = db.session.get(Job, c.job_id) if c.job_id else None
+                
+                # Parse da análise IA
+                analysis = {}
+                if c.ai_analysis:
+                    try:
+                        analysis = json.loads(c.ai_analysis)
+                    except:
+                        analysis = {}
+                
+                # [OK] TODOS OS CAMPOS QUE O CHATBOT_SERVICE.PY ESPERA
+                technical_skills = analysis.get('technical_skills', [])
+                skills_str = ', '.join(technical_skills) if isinstance(technical_skills, list) else str(technical_skills)
+                
+                candidates_context.append({
+                    # Campos básicos
+                    'id': c.id,
+                    'name': c.name,
+                    'email': c.email,
+                    'phone': c.phone or '',
+                    'vaga_aplicada': job.title if job else 'Sem vaga',
+                    'job_id': c.job_id,
+                    
+                    # Scores (EXATOS como o chatbot_service.py espera)
+                    'score_geral': round(float(c.ai_score or 0), 1),
+                    'score_hard_skills': round(float(c.ai_score or 0) * 0.6, 1),
+                    'score_soft_skills': round(float(c.ai_score or 0) * 0.4, 1),
+                    
+                    # Status e senioridade
+                    'status': c.status,
+                    'senioridade': analysis.get('experience_level', 'Não especificado'),
+                    
+                    # Análise detalhada
+                    'pontos_fortes': analysis.get('strengths', []),
+                    'pontos_atencao': analysis.get('weaknesses', []),
+                    'recomendacao': analysis.get('recommendation', ''),
+                    
+                    # Skills (campo que o chatbot_service.py usa)
+                    'skills_extraidas': skills_str,
+                })
+            except Exception as e:
+                logger.error(f"[ERROR] Erro ao processar candidato {c.id}: {e}")
+                continue
+        
+        # Montar contexto das vagas
+        jobs_context = []
+        for j in jobs:
+            try:
+                candidates_count = Candidate.query.filter_by(job_id=j.id).count()
+                
+                # [OK] TODOS OS CAMPOS QUE O CHATBOT_SERVICE.PY ESPERA
+                jobs_context.append({
+                    'id': j.id,
+                    'titulo': j.title,
+                    'nivel': 'Pleno',  # ← Ajuste se tiver no banco
+                    'descricao': j.description or '',
+                    'requisitos': j.requirements or '',
+                    'skills_requeridas': j.requirements or '',  # ← Campo que o chatbot espera
+                    'status': j.status,
+                    'total_candidatos': candidates_count,
+                })
+            except Exception as e:
+                logger.error(f"[ERROR] Erro ao processar vaga {j.id}: {e}")
+                continue
+        
+        # Verificar se há dados
+        if not candidates_context and not jobs_context:
+            response_text = """[WARN] **Sistema sem dados**
+
+Não encontrei candidatos nem vagas no sistema.
+
+**O que fazer:**
+1. Cadastre vagas em "Gerenciar Vagas"
+2. Faça upload de currículos
+3. Aguarde a análise da IA
+4. Volte aqui para fazer perguntas"""
+            
+            return jsonify({
+                'success': True,
+                'response': response_text
+            })
+        
+        if not candidates_context:
+            response_text = """[WARN] **Nenhum candidato analisado**
+
+Encontrei vagas, mas nenhum candidato com análise completa.
+
+**Próximos passos:**
+- Faça upload de currículos
+- Aguarde a análise automática
+- Depois poderei responder suas perguntas"""
+            
+            return jsonify({
+                'success': True,
+                'response': response_text
+            })
+        
+        # Importar e usar o serviço de chatbot
+        try:
+            from chatbot_service import TessChatbotService
+            
+            service = TessChatbotService()
+            
+            # Construir prompt
+            response = service.process_query(candidates=candidates_context, jobs=jobs_context, user_query=user_query)
+            
+            # Chamar Tess
+            # response_text = service.call_tess(prompt)
+            
+            logger.info(f"[OK] Resposta gerada com sucesso")
+            
+            return jsonify({
+                'success': response.success,
+                'response': response.content,
+                'function_type': response.function_type.name if hasattr(response, 'function_type') else None,
+                'metadata': response.metadata if hasattr(response, 'metadata') else {},
+                'error': response.error if hasattr(response, 'error') else None
+            })
+            
+        except ImportError:
+            logger.error("[ERROR] chatbot_service.py não encontrado!")
+            return jsonify({
+                'success': False,
+                'error': 'Serviço de chatbot não disponível',
+                'response': '[ERROR] Erro: Módulo chatbot_service não encontrado. Verifique se o arquivo existe.'
+            }), 200
+        
+    except Exception as e:
+        logger.error(f"[ERROR] Erro no chatbot: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': 'Erro ao processar pergunta',
+            'response': f'[ERROR] Desculpe, ocorreu um erro ao processar sua pergunta. Tente novamente.'
+        }), 200
+
 @app.route('/')
 def index():
     """Rota principal"""
@@ -270,7 +541,7 @@ def login():
         password = request.form.get('password', '')
         
         if not username or not password:
-            flash('❌ Preencha todos os campos!', 'danger')
+            flash('[ERROR] Preencha todos os campos!', 'danger')
             return render_template('login.html')
         
         user = User.query.filter(
@@ -279,11 +550,11 @@ def login():
         
         if user and check_password_hash(user.password_hash, password):
             login_user(user)
-            flash(f'✅ Bem-vindo, {user.username}!', 'success')
+            flash(f'[OK] Bem-vindo, {user.username}!', 'success')
             next_page = request.args.get('next')
             return redirect(next_page) if next_page else redirect(url_for('dashboard'))
         else:
-            flash('❌ Usuário ou senha incorretos!', 'danger')
+            flash('[ERROR] Usuário ou senha incorretos!', 'danger')
     
     return render_template('login.html')
 
@@ -303,33 +574,33 @@ def register():
         confirm_password = request.form.get('confirm_password', '')
         
         if not username or not email or not password or not confirm_password:
-            flash('❌ Todos os campos são obrigatórios!', 'danger')
+            flash('[ERROR] Todos os campos são obrigatórios!', 'danger')
             return render_template('register.html', is_first_user=is_first_user)
         
         valid, error = validate_username(username)
         if not valid:
-            flash(f'❌ {error}', 'danger')
+            flash(f'[ERROR] {error}', 'danger')
             return render_template('register.html', is_first_user=is_first_user)
         
         if not validate_email(email):
-            flash('❌ Email inválido! Use o formato: exemplo@email.com', 'danger')
+            flash('[ERROR] Email inválido! Use o formato: exemplo@email.com', 'danger')
             return render_template('register.html', is_first_user=is_first_user)
         
         valid, error = validate_password(password)
         if not valid:
-            flash(f'❌ {error}', 'danger')
+            flash(f'[ERROR] {error}', 'danger')
             return render_template('register.html', is_first_user=is_first_user)
         
         if password != confirm_password:
-            flash('❌ As senhas não coincidem!', 'danger')
+            flash('[ERROR] As senhas não coincidem!', 'danger')
             return render_template('register.html', is_first_user=is_first_user)
         
         if User.query.filter_by(username=username).first():
-            flash('❌ Nome de usuário já existe!', 'danger')
+            flash('[ERROR] Nome de usuário já existe!', 'danger')
             return render_template('register.html', is_first_user=is_first_user)
         
         if User.query.filter_by(email=email).first():
-            flash('❌ Email já cadastrado!', 'danger')
+            flash('[ERROR] Email já cadastrado!', 'danger')
             return render_template('register.html', is_first_user=is_first_user)
         
         user = User(
@@ -344,17 +615,17 @@ def register():
             db.session.commit()
             
             if is_first_user:
-                flash('✅ Conta de administrador criada com sucesso! Faça login.', 'success')
+                flash('[OK] Conta de administrador criada com sucesso! Faça login.', 'success')
             else:
-                flash('✅ Conta criada com sucesso! Faça login.', 'success')
+                flash('[OK] Conta criada com sucesso! Faça login.', 'success')
             
-            logger.info(f"✅ Usuário criado: {username} (Admin: {is_first_user})")
+            logger.info(f"[OK] Usuário criado: {username} (Admin: {is_first_user})")
             return redirect(url_for('login'))
             
         except Exception as e:
             db.session.rollback()
-            logger.error(f"❌ Erro ao criar usuário: {e}")
-            flash('❌ Erro ao criar conta. Tente novamente.', 'danger')
+            logger.error(f"[ERROR] Erro ao criar usuário: {e}")
+            flash('[ERROR] Erro ao criar conta. Tente novamente.', 'danger')
     
     return render_template('register.html', is_first_user=is_first_user)
 
@@ -375,34 +646,34 @@ def change_password():
         confirm_password = request.form.get('confirm_password', '')
         
         if not all([current_password, new_password, confirm_password]):
-            flash('❌ Preencha todos os campos!', 'danger')
+            flash('[ERROR] Preencha todos os campos!', 'danger')
             return render_template('change_password.html')
         
         if not check_password_hash(current_user.password_hash, current_password):
-            flash('❌ Senha atual incorreta!', 'danger')
+            flash('[ERROR] Senha atual incorreta!', 'danger')
             return render_template('change_password.html')
         
         if new_password != confirm_password:
-            flash('❌ As novas senhas não coincidem!', 'danger')
+            flash('[ERROR] As novas senhas não coincidem!', 'danger')
             return render_template('change_password.html')
         
         valid, error = validate_password(new_password)
         if not valid:
-            flash(f'❌ {error}', 'danger')
+            flash(f'[ERROR] {error}', 'danger')
             return render_template('change_password.html')
         
         try:
             current_user.password_hash = generate_password_hash(new_password)
             db.session.commit()
             
-            flash('✅ Senha alterada com sucesso!', 'success')
-            logger.info(f"✅ Usuário {current_user.username} alterou a senha")
+            flash('[OK] Senha alterada com sucesso!', 'success')
+            logger.info(f"[OK] Usuário {current_user.username} alterou a senha")
             return redirect(url_for('dashboard'))
             
         except Exception as e:
             db.session.rollback()
-            logger.error(f"❌ Erro ao alterar senha: {e}")
-            flash('❌ Erro ao alterar senha. Tente novamente.', 'danger')
+            logger.error(f"[ERROR] Erro ao alterar senha: {e}")
+            flash('[ERROR] Erro ao alterar senha. Tente novamente.', 'danger')
     
     return render_template('change_password.html')
 
@@ -418,25 +689,25 @@ def request_access():
         reason = request.form.get('reason', '').strip()
         
         if not all([name, email, reason]):
-            flash('❌ Preencha todos os campos!', 'danger')
+            flash('[ERROR] Preencha todos os campos!', 'danger')
             return render_template('request_access.html')
         
         if not validate_email(email):
-            flash('❌ Email inválido!', 'danger')
+            flash('[ERROR] Email inválido!', 'danger')
             return render_template('request_access.html')
         
         if User.query.filter_by(email=email).first():
-            flash('❌ Este email já está cadastrado. Faça login ou recupere sua senha.', 'danger')
+            flash('[ERROR] Este email já está cadastrado. Faça login ou recupere sua senha.', 'danger')
             return redirect(url_for('login'))
         
         try:
-            logger.info(f"📧 Solicitação de acesso: {name} ({email}) - Motivo: {reason}")
-            flash('✅ Solicitação enviada! Entraremos em contato em breve.', 'success')
+            logger.info(f" Solicitação de acesso: {name} ({email}) - Motivo: {reason}")
+            flash('[OK] Solicitação enviada! Entraremos em contato em breve.', 'success')
             return redirect(url_for('login'))
             
         except Exception as e:
-            logger.error(f"❌ Erro ao processar solicitação: {e}")
-            flash('❌ Erro ao enviar solicitação. Tente novamente.', 'danger')
+            logger.error(f"[ERROR] Erro ao processar solicitação: {e}")
+            flash('[ERROR] Erro ao enviar solicitação. Tente novamente.', 'danger')
     
     return render_template('request_access.html')
 
@@ -505,11 +776,11 @@ def new_job():
         requirements = request.form.get('requirements', '').strip()
         
         if not title:
-            flash('❌ Título da vaga é obrigatório!', 'danger')
+            flash('[ERROR] Título da vaga é obrigatório!', 'danger')
             return render_template('new_job.html')
         
         if len(title) < 3:
-            flash('❌ Título deve ter no mínimo 3 caracteres!', 'danger')
+            flash('[ERROR] Título deve ter no mínimo 3 caracteres!', 'danger')
             return render_template('new_job.html')
         
         job = Job(
@@ -522,12 +793,12 @@ def new_job():
         try:
             db.session.add(job)
             db.session.commit()
-            flash(f'✅ Vaga "{title}" criada com sucesso!', 'success')
+            flash(f'[OK] Vaga "{title}" criada com sucesso!', 'success')
             return redirect(url_for('jobs'))
         except Exception as e:
             db.session.rollback()
             logger.error(f"Erro ao criar vaga: {e}")
-            flash('❌ Erro ao criar vaga. Tente novamente.', 'danger')
+            flash('[ERROR] Erro ao criar vaga. Tente novamente.', 'danger')
     
     return render_template('new_job.html')
 
@@ -555,11 +826,11 @@ def delete_job(job_id):
         db.session.delete(job)
         db.session.commit()
         
-        flash(f'✅ Vaga "{job.title}" excluída com sucesso!', 'success')
+        flash(f'[OK] Vaga "{job.title}" excluída com sucesso!', 'success')
     except Exception as e:
         db.session.rollback()
         logger.error(f"Erro ao excluir vaga: {e}")
-        flash('❌ Erro ao excluir vaga. Tente novamente.', 'danger')
+        flash('[ERROR] Erro ao excluir vaga. Tente novamente.', 'danger')
     
     return redirect(url_for('jobs'))
 
@@ -596,7 +867,7 @@ def reanalyze_all_candidates_for_job(job_id):
                 'resume_text': candidate.resume_text
             }
             
-            logger.info(f"🤖 Reanalisando {candidate.name} para a vaga '{job.title}'...")
+            logger.info(f"[BOT] Reanalisando {candidate.name} para a vaga '{job.title}'...")
             new_analysis = ai_analyzer.analyze_candidate(candidate_data, job_requirements)
 
             if 'overall_score' in new_analysis:
@@ -609,17 +880,17 @@ def reanalyze_all_candidates_for_job(job_id):
 
         except Exception as e:
             error_count += 1
-            logger.error(f"❌ Erro ao reanalisar candidato {candidate.id}: {e}")
+            logger.error(f"[ERROR] Erro ao reanalisar candidato {candidate.id}: {e}")
 
     try:
         db.session.commit()
-        flash(f'✅ Reanálise concluída! {success_count} candidatos atualizados.', 'success')
+        flash(f'[OK] Reanálise concluída! {success_count} candidatos atualizados.', 'success')
         if error_count > 0:
-            flash(f'⚠️ {error_count} candidatos não puderam ser reanalisados.', 'warning')
+            flash(f'[WARN] {error_count} candidatos não puderam ser reanalisados.', 'warning')
     except Exception as e:
         db.session.rollback()
-        logger.error(f"❌ Erro ao salvar reanálises no banco: {e}")
-        flash('❌ Ocorreu um erro ao salvar as atualizações no banco de dados.', 'danger')
+        logger.error(f"[ERROR] Erro ao salvar reanálises no banco: {e}")
+        flash('[ERROR] Ocorreu um erro ao salvar as atualizações no banco de dados.', 'danger')
 
     return redirect(url_for('job_detail', job_id=job_id))
 
@@ -639,59 +910,59 @@ def new_candidate(job_id):
         phone = request.form.get('phone', '').strip()
         
         if not name:
-            flash('❌ Nome é obrigatório!', 'danger')
+            flash('[ERROR] Nome é obrigatório!', 'danger')
             return render_template('new_candidate.html', job=job)
         
         if not email:
-            flash('❌ Email é obrigatório!', 'danger')
+            flash('[ERROR] Email é obrigatório!', 'danger')
             return render_template('new_candidate.html', job=job)
         
         if not phone:
-            flash('❌ Telefone é obrigatório!', 'danger')
+            flash('[ERROR] Telefone é obrigatório!', 'danger')
             return render_template('new_candidate.html', job=job)
         
         if not validate_email(email):
-            flash('❌ Email inválido! Use o formato: exemplo@email.com', 'danger')
+            flash('[ERROR] Email inválido! Use o formato: exemplo@email.com', 'danger')
             return render_template('new_candidate.html', job=job)
         
         if not validate_phone(phone):
-            flash('❌ Telefone inválido! Use formato: DDD + Número (ex: 11999999999)', 'danger')
+            flash('[ERROR] Telefone inválido! Use formato: DDD + Número (ex: 11999999999)', 'danger')
             return render_template('new_candidate.html', job=job)
         
         file = request.files.get('resume')
         
         if not file or not file.filename:
-            flash('❌ É necessário enviar um currículo em PDF!', 'danger')
+            flash('[ERROR] É necessário enviar um currículo em PDF!', 'danger')
             return render_template('new_candidate.html', job=job)
         
         if not allowed_file(file.filename):
-            flash('❌ Apenas arquivos PDF são permitidos!', 'danger')
+            flash('[ERROR] Apenas arquivos PDF são permitidos!', 'danger')
             return render_template('new_candidate.html', job=job)
         
         valid_size, size_error = validate_file_size(file, max_size_mb=16)
         if not valid_size:
-            flash(f'❌ {size_error}', 'danger')
+            flash(f'[ERROR] {size_error}', 'danger')
             return render_template('new_candidate.html', job=job)
         
         filename = sanitize_filename(file.filename)
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(filepath)
-        logger.info(f"📁 Arquivo salvo: {filepath}")
+        logger.info(f" Arquivo salvo: {filepath}")
         
         valid_pdf, pdf_error = validate_pdf_content(filepath)
         if not valid_pdf:
             safe_delete_file(filepath)
-            flash(f'❌ PDF inválido: {pdf_error}', 'danger')
+            flash(f'[ERROR] PDF inválido: {pdf_error}', 'danger')
             return render_template('new_candidate.html', job=job)
         
         resume_text = extract_text_from_pdf(filepath)
         
         if not resume_text or len(resume_text.strip()) < 50:
             safe_delete_file(filepath)
-            flash('❌ Não foi possível extrair texto do PDF. Verifique o arquivo.', 'danger')
+            flash('[ERROR] Não foi possível extrair texto do PDF. Verifique o arquivo.', 'danger')
             return render_template('new_candidate.html', job=job)
         
-        logger.info(f"📄 Texto extraído: {len(resume_text)} caracteres")
+        logger.info(f"[FILE] Texto extraído: {len(resume_text)} caracteres")
         
         try:
             candidate_data = {
@@ -706,16 +977,16 @@ def new_candidate(job_id):
                 'requirements': job.requirements or ''
             }
             
-            logger.info(f"🤖 Iniciando análise IA...")
+            logger.info(f"[BOT] Iniciando análise IA...")
             ai_analysis = ai_analyzer.analyze_candidate(candidate_data, job_requirements)
             ai_score = ai_analysis.get('overall_score', 50)
-            logger.info(f"✅ Análise concluída. Score: {ai_score}")
+            logger.info(f"[OK] Análise concluída. Score: {ai_score}")
             
         # CONTINUAÇÃO DO ARQUIVO app.py
 # Cole isso após a linha "except Exception" da parte 1
 
         except Exception as e:
-            logger.error(f"⚠️ Erro na análise IA: {e}")
+            logger.error(f"[WARN] Erro na análise IA: {e}")
             ai_analysis = {
                 'overall_score': 50,
                 'recommendation': 'Análise manual necessária',
@@ -740,18 +1011,18 @@ def new_candidate(job_id):
         db.session.add(candidate)
         db.session.commit()
         
-        logger.info(f"✅ Candidato {name} cadastrado (ID: {candidate.id})")
-        flash(f'✅ Candidato {name} adicionado! Score IA: {ai_score}', 'success')
+        logger.info(f"[OK] Candidato {name} cadastrado (ID: {candidate.id})")
+        flash(f'[OK] Candidato {name} adicionado! Score IA: {ai_score}', 'success')
         return redirect(url_for('candidate_detail', candidate_id=candidate.id))
     
     except Exception as e:
         db.session.rollback()
-        logger.error(f"❌ Erro ao adicionar candidato: {e}")
+        logger.error(f"[ERROR] Erro ao adicionar candidato: {e}")
         
         if 'filepath' in locals() and filepath:
             safe_delete_file(filepath)
         
-        flash('❌ Erro ao adicionar candidato. Tente novamente.', 'danger')
+        flash('[ERROR] Erro ao adicionar candidato. Tente novamente.', 'danger')
         return render_template('new_candidate.html', job=job)
 
 @app.route('/candidates/<int:candidate_id>')
@@ -779,9 +1050,9 @@ def update_candidate_status(candidate_id):
     if new_status in ['pending', 'interview', 'approved', 'rejected']:
         candidate.status = new_status
         db.session.commit()
-        flash('✅ Status atualizado!', 'success')
+        flash('[OK] Status atualizado!', 'success')
     else:
-        flash('❌ Status inválido!', 'danger')
+        flash('[ERROR] Status inválido!', 'danger')
     
     return redirect(url_for('candidate_detail', candidate_id=candidate_id))
 
@@ -795,7 +1066,7 @@ def reanalyze_candidate(candidate_id):
     resume_text = candidate.resume_text 
     
     if not resume_text:
-        flash('❌ Texto do currículo não encontrado!', 'danger')
+        flash('[ERROR] Texto do currículo não encontrado!', 'danger')
         return redirect(url_for('candidate_detail', candidate_id=candidate.id))
 
     try:
@@ -816,13 +1087,13 @@ def reanalyze_candidate(candidate_id):
             candidate.ai_score = new_analysis['overall_score']
             candidate.ai_analysis = json.dumps(new_analysis)
             db.session.commit()
-            flash('✅ Análise atualizada com sucesso!', 'success')
+            flash('[OK] Análise atualizada com sucesso!', 'success')
         else:
-            flash('❌ Erro na reanálise. Verifique os logs.', 'danger')
+            flash('[ERROR] Erro na reanálise. Verifique os logs.', 'danger')
     
     except Exception as e:
         logger.error(f"Erro ao reanalisar: {e}")
-        flash('❌ Erro ao reanalisar candidato.', 'danger')
+        flash('[ERROR] Erro ao reanalisar candidato.', 'danger')
 
     return redirect(url_for('candidate_detail', candidate_id=candidate.id))
 
@@ -840,11 +1111,11 @@ def delete_candidate(candidate_id):
         db.session.delete(candidate)
         db.session.commit()
         
-        flash(f'✅ Candidato "{candidate.name}" excluído com sucesso!', 'success')
+        flash(f'[OK] Candidato "{candidate.name}" excluído com sucesso!', 'success')
     except Exception as e:
         db.session.rollback()
         logger.error(f"Erro ao excluir candidato: {e}")
-        flash('❌ Erro ao excluir candidato.', 'danger')
+        flash('[ERROR] Erro ao excluir candidato.', 'danger')
     
     return redirect(url_for('job_detail', job_id=job_id))
 
@@ -925,14 +1196,14 @@ def new_interview():
         duration = request.form.get('duration', 60, type=int)
         
         if not all([candidate_id, job_id, title, date_str, time_str]):
-            flash('❌ Preencha todos os campos obrigatórios!', 'danger')
+            flash('[ERROR] Preencha todos os campos obrigatórios!', 'danger')
             return redirect(url_for('new_interview'))
         
         try:
             scheduled_datetime = datetime.strptime(f"{date_str} {time_str}", "%Y-%m-%d %H:%M")
             
             if scheduled_datetime < datetime.utcnow():
-                flash('❌ A data da entrevista não pode estar no passado!', 'danger')
+                flash('[ERROR] A data da entrevista não pode estar no passado!', 'danger')
                 return redirect(url_for('new_interview'))
             
             meeting_link = request.form.get('meeting_link', '').strip()
@@ -956,23 +1227,23 @@ def new_interview():
             
             db.session.add(interview)
             
-            candidate = Candidate.query.get(candidate_id)
+            candidate = db.session.get(Candidate, candidate_id)
             if candidate and candidate.status == 'pending':
                 candidate.status = 'interview'
             
             db.session.commit()
             
-            flash(f'✅ Entrevista agendada com sucesso!', 'success')
-            logger.info(f"✅ Entrevista criada: {title} (ID: {interview.id})")
+            flash(f'[OK] Entrevista agendada com sucesso!', 'success')
+            logger.info(f"[OK] Entrevista criada: {title} (ID: {interview.id})")
             return redirect(url_for('interview_detail', interview_id=interview.id))
             
         except ValueError as e:
-            flash('❌ Data ou hora inválida!', 'danger')
+            flash('[ERROR] Data ou hora inválida!', 'danger')
             return redirect(url_for('new_interview'))
         except Exception as e:
             db.session.rollback()
-            logger.error(f"❌ Erro ao criar entrevista: {e}")
-            flash('❌ Erro ao agendar entrevista. Tente novamente.', 'danger')
+            logger.error(f"[ERROR] Erro ao criar entrevista: {e}")
+            flash('[ERROR] Erro ao agendar entrevista. Tente novamente.', 'danger')
     
     candidates = Candidate.query.filter(
         Candidate.status.in_(['pending', 'interview'])
@@ -982,7 +1253,7 @@ def new_interview():
     candidate_id = request.args.get('candidate_id')
     selected_candidate = None
     if candidate_id:
-        selected_candidate = Candidate.query.get(candidate_id)
+        selected_candidate = db.session.get(Candidate, candidate_id)
     
     return render_template('new_interview.html',
                          candidates=candidates,
@@ -1016,9 +1287,9 @@ def update_interview_status(interview_id):
                 interview.rating = rating
         
         db.session.commit()
-        flash('✅ Status da entrevista atualizado!', 'success')
+        flash('[OK] Status da entrevista atualizado!', 'success')
     else:
-        flash('❌ Status inválido!', 'danger')
+        flash('[ERROR] Status inválido!', 'danger')
     
     return redirect(url_for('interview_detail', interview_id=interview_id))
 
@@ -1031,11 +1302,11 @@ def delete_interview(interview_id):
     try:
         db.session.delete(interview)
         db.session.commit()
-        flash('✅ Entrevista excluída com sucesso!', 'success')
+        flash('[OK] Entrevista excluída com sucesso!', 'success')
     except Exception as e:
         db.session.rollback()
-        logger.error(f"❌ Erro ao excluir entrevista: {e}")
-        flash('❌ Erro ao excluir entrevista.', 'danger')
+        logger.error(f"[ERROR] Erro ao excluir entrevista: {e}")
+        flash('[ERROR] Erro ao excluir entrevista.', 'danger')
     
     return redirect(url_for('interviews_list'))
 
@@ -1059,17 +1330,17 @@ def bulk_upload_candidates(job_id):
     
     if request.method == 'POST':
         if 'pdf_files' not in request.files:
-            logger.error(f"❌ Campo 'pdf_files' não encontrado. Campos disponíveis: {list(request.files.keys())}")
-            flash('❌ Nenhum arquivo enviado!', 'danger')
+            logger.error(f"[ERROR] Campo 'pdf_files' não encontrado. Campos disponíveis: {list(request.files.keys())}")
+            flash('[ERROR] Nenhum arquivo enviado!', 'danger')
             return redirect(url_for('bulk_upload_candidates', job_id=job_id))
         
         files = request.files.getlist('pdf_files')
         
         if not files or len(files) == 0 or files[0].filename == '':
-            flash('❌ Nenhum arquivo selecionado!', 'danger')
+            flash('[ERROR] Nenhum arquivo selecionado!', 'danger')
             return redirect(url_for('bulk_upload_candidates', job_id=job_id))
         
-        logger.info(f"📂 Recebidos {len(files)} arquivo(s) para upload")
+        logger.info(f" Recebidos {len(files)} arquivo(s) para upload")
         
         success_count = 0
         error_count = 0
@@ -1081,12 +1352,12 @@ def bulk_upload_candidates(job_id):
             if not filename:
                 continue
             
-            logger.info(f"📄 Processando: {filename}")
+            logger.info(f"[FILE] Processando: {filename}")
             
             if not allowed_file(filename):
                 error_count += 1
                 errors.append(f'{filename}: Apenas PDFs são permitidos')
-                logger.warning(f"⚠️ Arquivo rejeitado (não é PDF): {filename}")
+                logger.warning(f"[WARN] Arquivo rejeitado (não é PDF): {filename}")
                 continue
             
             try:
@@ -1101,7 +1372,7 @@ def bulk_upload_candidates(job_id):
                     counter += 1
                 
                 file.save(filepath)
-                logger.info(f"💾 Arquivo salvo: {filepath}")
+                logger.info(f" Arquivo salvo: {filepath}")
                 
                 valid_size, size_error = validate_file_size(file, max_size_mb=16)
                 if not valid_size:
@@ -1115,7 +1386,7 @@ def bulk_upload_candidates(job_id):
                     safe_delete_file(filepath)
                     error_count += 1
                     errors.append(f'{filename}: {pdf_error}')
-                    logger.warning(f"⚠️ PDF inválido: {filename}")
+                    logger.warning(f"[WARN] PDF inválido: {filename}")
                     continue
                 
                 resume_text = extract_text_from_pdf(filepath)
@@ -1124,17 +1395,17 @@ def bulk_upload_candidates(job_id):
                     safe_delete_file(filepath)
                     error_count += 1
                     errors.append(f'{filename}: Não foi possível extrair texto do PDF')
-                    logger.warning(f"⚠️ Texto insuficiente: {filename}")
+                    logger.warning(f"[WARN] Texto insuficiente: {filename}")
                     continue
                 
-                logger.info(f"📝 Texto extraído: {len(resume_text)} caracteres")
+                logger.info(f" Texto extraído: {len(resume_text)} caracteres")
                 
                 candidate_info = extract_candidate_info(resume_text, filename)
                 candidate_name = candidate_info['name']
                 candidate_email = candidate_info['email']
                 candidate_phone = candidate_info['phone']
                 
-                logger.info(f"👤 Candidato: {candidate_name} | 📧 {candidate_email} | 📱 {candidate_phone}")
+                logger.info(f" Candidato: {candidate_name} | 📧 {candidate_email} | 📱 {candidate_phone}")
                 
                 candidate_data = {
                     'name': candidate_name,
@@ -1149,13 +1420,13 @@ def bulk_upload_candidates(job_id):
                 }
                 
                 try:
-                    logger.info(f"🤖 Iniciando análise IA para {candidate_name}...")
+                    logger.info(f"[BOT] Iniciando análise IA para {candidate_name}...")
                     ai_analysis = ai_analyzer.analyze_candidate(candidate_data, job_requirements)
                     ai_score = ai_analysis.get('overall_score', 50)
-                    logger.info(f"✅ Análise concluída. Score: {ai_score}")
+                    logger.info(f"[OK] Análise concluída. Score: {ai_score}")
                     
                 except Exception as e:
-                    logger.warning(f"⚠️ Erro na análise IA de {filename}: {e}")
+                    logger.warning(f"[WARN] Erro na análise IA de {filename}: {e}")
                     ai_analysis = {
                         'overall_score': 50,
                         'recommendation': 'Análise manual necessária',
@@ -1189,10 +1460,10 @@ def bulk_upload_candidates(job_id):
                 
                 db.session.add(candidate)
                 success_count += 1
-                logger.info(f"✅ Candidato {candidate_name} adicionado ao banco")
+                logger.info(f"[OK] Candidato {candidate_name} adicionado ao banco")
                 
             except Exception as e:
-                logger.error(f"❌ Erro ao processar {filename}: {e}")
+                logger.error(f"[ERROR] Erro ao processar {filename}: {e}")
                 error_count += 1
                 errors.append(f'{filename}: {str(e)}')
                 if 'filepath' in locals() and filepath and os.path.exists(filepath):
@@ -1200,25 +1471,25 @@ def bulk_upload_candidates(job_id):
         
         try:
             db.session.commit()
-            logger.info(f"💾 Dados salvos no banco: {success_count} candidatos")
+            logger.info(f" Dados salvos no banco: {success_count} candidatos")
             
             if success_count > 0:
-                flash(f'✅ {success_count} candidato(s) adicionado(s) com sucesso!', 'success')
+                flash(f'[OK] {success_count} candidato(s) adicionado(s) com sucesso!', 'success')
             
             if error_count > 0:
-                flash(f'⚠️ {error_count} arquivo(s) com erro:', 'warning')
+                flash(f'[WARN] {error_count} arquivo(s) com erro:', 'warning')
                 for error in errors[:10]:
                     flash(f'• {error}', 'warning')
             
             if success_count == 0:
-                flash('❌ Nenhum candidato foi importado. Verifique os arquivos.', 'danger')
+                flash('[ERROR] Nenhum candidato foi importado. Verifique os arquivos.', 'danger')
             
             return redirect(url_for('job_detail', job_id=job_id))
             
         except Exception as e:
             db.session.rollback()
-            logger.error(f"❌ Erro ao salvar no banco: {e}")
-            flash('❌ Erro ao salvar candidatos no banco de dados.', 'danger')
+            logger.error(f"[ERROR] Erro ao salvar no banco: {e}")
+            flash('[ERROR] Erro ao salvar candidatos no banco de dados.', 'danger')
     
     return render_template('bulk_upload_pdf.html', job=job)
 
@@ -1237,29 +1508,29 @@ def import_candidates(job_id):
                 break
         
         if not file:
-            flash('❌ Nenhum arquivo enviado!', 'danger')
+            flash('[ERROR] Nenhum arquivo enviado!', 'danger')
             logger.warning(f"Campos disponíveis: {list(request.files.keys())}")
             return redirect(url_for('import_candidates', job_id=job_id))
         
         if file.filename == '':
-            flash('❌ Nenhum arquivo selecionado!', 'danger')
+            flash('[ERROR] Nenhum arquivo selecionado!', 'danger')
             return redirect(url_for('import_candidates', job_id=job_id))
         
         ext = os.path.splitext(file.filename)[1].lower()
         
         if ext not in ['.csv', '.xlsx', '.xls']:
-            flash('❌ Formato inválido! Use CSV ou Excel (.csv, .xlsx, .xls)', 'danger')
+            flash('[ERROR] Formato inválido! Use CSV ou Excel (.csv, .xlsx, .xls)', 'danger')
             return redirect(url_for('import_candidates', job_id=job_id))
         
         try:
-            logger.info(f"📂 Processando arquivo: {file.filename} ({ext})")
+            logger.info(f" Processando arquivo: {file.filename} ({ext})")
             
             if ext == '.csv':
                 df = pd.read_csv(file, encoding='utf-8-sig')
             else:
                 df = pd.read_excel(file, engine='openpyxl')
             
-            logger.info(f"📊 Arquivo lido: {len(df)} linhas, Colunas: {list(df.columns)}")
+            logger.info(f"[DATA] Arquivo lido: {len(df)} linhas, Colunas: {list(df.columns)}")
             
             df.columns = df.columns.str.strip().str.lower()
             
@@ -1267,7 +1538,7 @@ def import_candidates(job_id):
             missing_columns = [col for col in required_columns if col not in df.columns]
             
             if missing_columns:
-                flash(f'❌ Colunas obrigatórias faltando: {", ".join(missing_columns)}', 'danger')
+                flash(f'[ERROR] Colunas obrigatórias faltando: {", ".join(missing_columns)}', 'danger')
                 flash(f'ℹ️ Colunas encontradas: {", ".join(df.columns)}', 'info')
                 return redirect(url_for('import_candidates', job_id=job_id))
             
@@ -1322,36 +1593,36 @@ def import_candidates(job_id):
                     
                     db.session.add(candidate)
                     success_count += 1
-                    logger.info(f"✅ Linha {index + 2}: {name} adicionado")
+                    logger.info(f"[OK] Linha {index + 2}: {name} adicionado")
                     
                 except Exception as e:
                     error_count += 1
                     error_msg = f'Linha {index + 2}: {str(e)}'
                     errors.append(error_msg)
-                    logger.error(f"❌ {error_msg}")
+                    logger.error(f"[ERROR] {error_msg}")
             
             db.session.commit()
             
             if success_count > 0:
-                flash(f'✅ {success_count} candidato(s) importado(s) com sucesso!', 'success')
+                flash(f'[OK] {success_count} candidato(s) importado(s) com sucesso!', 'success')
             
             if error_count > 0:
-                flash(f'⚠️ {error_count} linha(s) com erro foram ignoradas.', 'warning')
+                flash(f'[WARN] {error_count} linha(s) com erro foram ignoradas.', 'warning')
                 for error in errors[:10]:
                     flash(f'• {error}', 'warning')
             
             if success_count == 0 and error_count > 0:
-                flash('❌ Nenhum candidato foi importado. Verifique o arquivo.', 'danger')
+                flash('[ERROR] Nenhum candidato foi importado. Verifique o arquivo.', 'danger')
             
             return redirect(url_for('job_detail', job_id=job_id))
             
         except pd.errors.EmptyDataError:
-            flash('❌ Arquivo vazio ou mal formatado!', 'danger')
+            flash('[ERROR] Arquivo vazio ou mal formatado!', 'danger')
             logger.error("Erro: Arquivo vazio")
         except Exception as e:
             db.session.rollback()
-            logger.error(f"❌ Erro ao importar: {e}")
-            flash(f'❌ Erro ao importar arquivo: {str(e)}', 'danger')
+            logger.error(f"[ERROR] Erro ao importar: {e}")
+            flash(f'[ERROR] Erro ao importar arquivo: {str(e)}', 'danger')
     
     return render_template('import_candidates.html', job=job)
 
@@ -1407,7 +1678,7 @@ def reports():
 def admin_panel():
     """Painel Administrativo"""
     if not current_user.is_admin:
-        flash('❌ Acesso negado! Apenas administradores.', 'danger')
+        flash('[ERROR] Acesso negado! Apenas administradores.', 'danger')
         return redirect(url_for('dashboard'))
     
     users = User.query.all()
@@ -1430,20 +1701,20 @@ def toggle_admin(user_id):
         # CONTINUAÇÃO FINAL DO ARQUIVO app.py
 # Cole isso após "if not current_user.is_admin:" da parte 2
 
-        flash('❌ Acesso negado!', 'danger')
+        flash('[ERROR] Acesso negado!', 'danger')
         return redirect(url_for('dashboard'))
     
     user = User.query.get_or_404(user_id)
     
     if user.id == current_user.id:
-        flash('❌ Você não pode alterar seu próprio status de admin!', 'danger')
+        flash('[ERROR] Você não pode alterar seu próprio status de admin!', 'danger')
         return redirect(url_for('admin_panel'))
     
     user.is_admin = not user.is_admin
     db.session.commit()
     
     status = "administrador" if user.is_admin else "usuário comum"
-    flash(f'✅ {user.username} agora é {status}!', 'success')
+    flash(f'[OK] {user.username} agora é {status}!', 'success')
     return redirect(url_for('admin_panel'))
 
 @app.route('/admin/users/<int:user_id>/delete', methods=['POST'])
@@ -1451,20 +1722,20 @@ def toggle_admin(user_id):
 def delete_user(user_id):
     """Deletar usuário"""
     if not current_user.is_admin:
-        flash('❌ Acesso negado!', 'danger')
+        flash('[ERROR] Acesso negado!', 'danger')
         return redirect(url_for('dashboard'))
     
     user = User.query.get_or_404(user_id)
     
     if user.id == current_user.id:
-        flash('❌ Você não pode deletar sua própria conta!', 'danger')
+        flash('[ERROR] Você não pode deletar sua própria conta!', 'danger')
         return redirect(url_for('admin_panel'))
     
     username = user.username
     db.session.delete(user)
     db.session.commit()
     
-    flash(f'✅ Usuário {username} deletado com sucesso!', 'success')
+    flash(f'[OK] Usuário {username} deletado com sucesso!', 'success')
     return redirect(url_for('admin_panel'))
 
 # ==================== ROTAS AUXILIARES ====================
@@ -1747,26 +2018,26 @@ def forbidden_error(error):
 with app.app_context():
     try:
         db.create_all()
-        logger.info("✅ Tabelas criadas com sucesso!")
+        logger.info("[OK] Tabelas criadas com sucesso!")
         
         try:
             with db.engine.connect() as conn:
                 try:
                     conn.execute(text("ALTER TABLE candidate ADD COLUMN resume_text TEXT"))
                     conn.commit()
-                    logger.info("✅ Coluna resume_text adicionada!")
+                    logger.info("[OK] Coluna resume_text adicionada!")
                 except Exception:
-                    logger.info("✅ Coluna resume_text já existe!")
+                    logger.info("[OK] Coluna resume_text já existe!")
         except Exception as e:
-            logger.warning(f"⚠️ Aviso ao verificar coluna resume_text: {e}")
+            logger.warning(f"[WARN] Aviso ao verificar coluna resume_text: {e}")
         
-        logger.info(f"📊 Total de usuários: {User.query.count()}")
-        logger.info(f"📊 Total de vagas: {Job.query.count()}")
-        logger.info(f"📊 Total de candidatos: {Candidate.query.count()}")
-        logger.info(f"📊 Total de entrevistas: {Interview.query.count()}")
-        logger.info("✅ Banco de dados inicializado!")
+        logger.info(f"[DATA] Total de usuários: {User.query.count()}")
+        logger.info(f"[DATA] Total de vagas: {Job.query.count()}")
+        logger.info(f"[DATA] Total de candidatos: {Candidate.query.count()}")
+        logger.info(f"[DATA] Total de entrevistas: {Interview.query.count()}")
+        logger.info("[OK] Banco de dados inicializado!")
     except Exception as e:
-        logger.error(f"⚠️ Erro ao inicializar banco: {e}")
+        logger.error(f"[WARN] Erro ao inicializar banco: {e}")
 
 # ==================== EXECUTAR ====================
 if __name__ == '__main__':

@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chatbot - TalentScope AI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { margin: 0; padding: 0; overflow: hidden; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <script type="text/babel">
+        const { useState, useRef, useEffect } = React;
+
+        // Ícones SVG simplificados
+        const SendIcon = () => (
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <line x1="22" y1="2" x2="11" y2="13"></line>
+                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+            </svg>
+        );
+
+        const SparklesIcon = () => (
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M12 3v18M3 12h18M5.6 5.6l12.8 12.8M5.6 18.4L18.4 5.6"></path>
+            </svg>
+        );
+
+        const LoaderIcon = () => (
+            <svg className="animate-spin" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21 12a9 9 0 1 1-6.219-8.56"></path>
+            </svg>
+        );
+
+        const UserIcon = () => (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                <circle cx="12" cy="7" r="4"></circle>
+            </svg>
+        );
+
+        const UsersIcon = () => (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                <circle cx="9" cy="7" r="4"></circle>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+            </svg>
+        );
+
+        const BriefcaseIcon = () => (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+                <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+            </svg>
+        );
+
+        const TalentChatbot = () => {
+            const [messages, setMessages] = useState([
+                {
+                    role: 'assistant',
+                    content: 'Olá! Sou o assistente inteligente da TalentScope AI. Posso te ajudar a entender melhor o match entre candidatos e vagas do seu sistema. Como posso ajudar?'
+                }
+            ]);
+            const [input, setInput] = useState('');
+            const [loading, setLoading] = useState(false);
+            const [contextLoading, setContextLoading] = useState(true);
+            const [context, setContext] = useState({ candidates: [], jobs: [] });
+            const messagesEndRef = useRef(null);
+
+            const suggestedQuestions = [
+                "Mostre todos os candidatos disponíveis com seus scores",
+                "Quais são as vagas ativas no sistema?",
+                "Recomende os melhores candidatos para cada vaga",
+                "Compare todos os candidatos analisados"
+            ];
+
+            const scrollToBottom = () => {
+                messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+            };
+
+            useEffect(() => {
+                scrollToBottom();
+            }, [messages]);
+
+            useEffect(() => {
+                loadContext();
+            }, []);
+
+            const loadContext = async () => {
+                try {
+                    setContextLoading(true);
+                    const response = await fetch('/api/chatbot/context');
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        setContext({
+                            candidates: data.candidates || [],
+                            jobs: data.jobs || []
+                        });
+                    }
+                } catch (err) {
+                    console.error('Erro ao carregar contexto:', err);
+                } finally {
+                    setContextLoading(false);
+                }
+            };
+
+            const handleSend = async () => {
+                if (!input.trim() || loading) return;
+
+                const userMessage = { role: 'user', content: input };
+                setMessages(prev => [...prev, userMessage]);
+                setInput('');
+                setLoading(true);
+
+                try {
+                    const response = await fetch('/api/chatbot/query', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ query: input })
+                    });
+
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        setMessages(prev => [...prev, { 
+                            role: 'assistant', 
+                            content: data.response 
+                        }]);
+                    }
+                } catch (err) {
+                    setMessages(prev => [...prev, { 
+                        role: 'assistant', 
+                        content: '❌ Erro ao processar pergunta. Tente novamente.' 
+                    }]);
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            const formatMessage = (content) => {
+                return content.split('\n').map((line, i) => {
+                    const trimmed = line.trim();
+                    
+                    if (trimmed.startsWith('## ')) {
+                        return <h2 key={i} className="text-lg font-bold mt-4 mb-2">{trimmed.replace('## ', '')}</h2>;
+                    } else if (trimmed.startsWith('### ')) {
+                        return <h3 key={i} className="text-base font-semibold mt-3 mb-2">{trimmed.replace('### ', '')}</h3>;
+                    } else if (trimmed.startsWith('- ') || trimmed.startsWith('• ')) {
+                        return <p key={i} className="ml-4 my-1">{trimmed}</p>;
+                    } else if (trimmed) {
+                        return <p key={i} className="my-1">{trimmed}</p>;
+                    }
+                    return null;
+                });
+            };
+
+            if (contextLoading) {
+                return (
+                    <div className="flex items-center justify-center h-screen bg-gradient-to-br from-slate-50 to-blue-50">
+                        <div className="text-center">
+                            <LoaderIcon />
+                            <p className="text-slate-600 font-medium mt-4">Carregando dados...</p>
+                        </div>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="flex flex-col h-screen bg-gradient-to-br from-slate-50 to-blue-50">
+                    {/* Header */}
+                    <div className="bg-white border-b border-slate-200 shadow-sm">
+                        <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="bg-gradient-to-br from-blue-600 to-purple-600 p-2 rounded-lg">
+                                    <SparklesIcon />
+                                </div>
+                                <div>
+                                    <h1 className="text-xl font-bold text-slate-800">TalentScope AI - Assistente</h1>
+                                    <p className="text-sm text-slate-500">Análise inteligente com dados reais</p>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-4 text-sm">
+                                <div className="flex items-center gap-2">
+                                    <UsersIcon />
+                                    <span className="font-medium">{context.candidates.length} candidatos</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <BriefcaseIcon />
+                                    <span className="font-medium">{context.jobs.length} vagas</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Chat Area */}
+                    <div className="flex-1 overflow-y-auto px-6 py-6">
+                        <div className="max-w-4xl mx-auto space-y-6">
+                            {messages.map((msg, idx) => (
+                                <div key={idx} className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                                    {msg.role === 'assistant' && (
+                                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center flex-shrink-0">
+                                            <SparklesIcon />
+                                        </div>
+                                    )}
+                                    
+                                    <div className={`max-w-2xl rounded-2xl px-5 py-4 ${
+                                        msg.role === 'user' 
+                                            ? 'bg-blue-600 text-white' 
+                                            : 'bg-white shadow-md border border-slate-200'
+                                    }`}>
+                                        {msg.role === 'user' ? (
+                                            <p>{msg.content}</p>
+                                        ) : (
+                                            <div className="text-slate-700">{formatMessage(msg.content)}</div>
+                                        )}
+                                    </div>
+
+                                    {msg.role === 'user' && (
+                                        <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center flex-shrink-0">
+                                            <UserIcon />
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+
+                            {loading && (
+                                <div className="flex gap-3">
+                                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center">
+                                        <SparklesIcon />
+                                    </div>
+                                    <div className="bg-white rounded-2xl px-5 py-4 shadow-md">
+                                        <div className="flex items-center gap-2">
+                                            <LoaderIcon />
+                                            <span>Analisando...</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            <div ref={messagesEndRef} />
+                        </div>
+                    </div>
+
+                    {/* Suggestions */}
+                    {messages.length === 1 && context.candidates.length > 0 && (
+                        <div className="px-6 pb-4">
+                            <div className="max-w-4xl mx-auto">
+                                <p className="text-sm text-slate-600 mb-3 font-medium">💡 Sugestões:</p>
+                                <div className="grid grid-cols-2 gap-2">
+                                    {suggestedQuestions.map((q, idx) => (
+                                        <button
+                                            key={idx}
+                                            onClick={() => setInput(q)}
+                                            className="text-left px-4 py-3 bg-white hover:bg-blue-50 border border-slate-200 rounded-xl text-sm"
+                                        >
+                                            {q}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Input */}
+                    <div className="bg-white border-t px-6 py-4">
+                        <div className="max-w-4xl mx-auto flex gap-3">
+                            <input
+                                type="text"
+                                value={input}
+                                onChange={(e) => setInput(e.target.value)}
+                                onKeyPress={(e) => e.key === 'Enter' && handleSend()}
+                                placeholder="Pergunte sobre candidatos e vagas..."
+                                disabled={loading}
+                                className="flex-1 px-5 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                            <button
+                                onClick={handleSend}
+                                disabled={loading || !input.trim()}
+                                className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl disabled:opacity-50 flex items-center gap-2"
+                            >
+                                <SendIcon />
+                                Enviar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        ReactDOM.render(<TalentChatbot />, document.getElementById('root'));
+    </script>
+</body>
+</html>
