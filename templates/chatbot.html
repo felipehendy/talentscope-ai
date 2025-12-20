@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chatbot - TalentScope AI</title>
+    <title>Chatbot TESS - TalentScope AI</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { margin: 0; padding: 0; overflow: hidden; }
@@ -66,7 +66,7 @@
             const [messages, setMessages] = useState([
                 {
                     role: 'assistant',
-                    content: 'Olá! Sou o assistente inteligente da TalentScope AI. Posso te ajudar a entender melhor o match entre candidatos e vagas do seu sistema. Como posso ajudar?'
+                    content: 'Olá! Sou a TESS, assistente inteligente da TalentScope AI. Posso te ajudar a entender melhor o match entre candidatos e vagas do seu sistema. Como posso ajudar?'
                 }
             ]);
             const [input, setInput] = useState('');
@@ -178,41 +178,41 @@
                 <div className="flex flex-col h-screen bg-gradient-to-br from-slate-50 to-blue-50">
                     {/* Header */}
                     <div className="bg-white border-b border-slate-200 shadow-sm">
-                        <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                                <div className="bg-gradient-to-br from-blue-600 to-purple-600 p-2 rounded-lg">
-                                    <SparklesIcon />
+                        <div className="max-w-5xl mx-auto px-4 md:px-6 py-3 md:py-4">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2 md:gap-3">
+                                    <img src="agente.png" alt="TESS" className="w-8 h-8 md:w-10 md:h-10 rounded-full object-cover" />
+                                    <div>
+                                        <h1 className="text-base md:text-xl font-bold text-slate-800">TESS</h1>
+                                        <p className="text-xs md:text-sm text-slate-500 hidden sm:block">Assistente Inteligente</p>
+                                    </div>
                                 </div>
-                                <div>
-                                    <h1 className="text-xl font-bold text-slate-800">TalentScope AI - Assistente</h1>
-                                    <p className="text-sm text-slate-500">Análise inteligente com dados reais</p>
-                                </div>
-                            </div>
-                            <div className="flex items-center gap-4 text-sm">
-                                <div className="flex items-center gap-2">
-                                    <UsersIcon />
-                                    <span className="font-medium">{context.candidates.length} candidatos</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <BriefcaseIcon />
-                                    <span className="font-medium">{context.jobs.length} vagas</span>
+                                <div className="flex items-center gap-2 md:gap-4 text-xs md:text-sm">
+                                    <div className="flex items-center gap-1 md:gap-2">
+                                        <UsersIcon />
+                                        <span className="font-medium hidden sm:inline">{context.candidates.length} candidatos</span>
+                                        <span className="font-medium sm:hidden">{context.candidates.length}</span>
+                                    </div>
+                                    <div className="flex items-center gap-1 md:gap-2">
+                                        <BriefcaseIcon />
+                                        <span className="font-medium hidden sm:inline">{context.jobs.length} vagas</span>
+                                        <span className="font-medium sm:hidden">{context.jobs.length}</span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
 
                     {/* Chat Area */}
-                    <div className="flex-1 overflow-y-auto px-6 py-6">
-                        <div className="max-w-4xl mx-auto space-y-6">
+                    <div className="flex-1 overflow-y-auto px-3 md:px-6 py-4 md:py-6">
+                        <div className="max-w-4xl mx-auto space-y-4 md:space-y-6">
                             {messages.map((msg, idx) => (
-                                <div key={idx} className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                                <div key={idx} className={`flex gap-2 md:gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                                     {msg.role === 'assistant' && (
-                                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center flex-shrink-0">
-                                            <SparklesIcon />
-                                        </div>
+                                        <img src="agente.png" alt="TESS" className="w-7 h-7 md:w-8 md:h-8 rounded-full object-cover flex-shrink-0" />
                                     )}
                                     
-                                    <div className={`max-w-2xl rounded-2xl px-5 py-4 ${
+                                    <div className={`max-w-[85%] md:max-w-2xl rounded-2xl px-3 py-3 md:px-5 md:py-4 text-sm md:text-base ${
                                         msg.role === 'user' 
                                             ? 'bg-blue-600 text-white' 
                                             : 'bg-white shadow-md border border-slate-200'
@@ -225,7 +225,7 @@
                                     </div>
 
                                     {msg.role === 'user' && (
-                                        <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center flex-shrink-0">
+                                        <div className="w-7 h-7 md:w-8 md:h-8 rounded-full bg-slate-700 flex items-center justify-center flex-shrink-0">
                                             <UserIcon />
                                         </div>
                                     )}
@@ -233,11 +233,9 @@
                             ))}
 
                             {loading && (
-                                <div className="flex gap-3">
-                                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center">
-                                        <SparklesIcon />
-                                    </div>
-                                    <div className="bg-white rounded-2xl px-5 py-4 shadow-md">
+                                <div className="flex gap-2 md:gap-3">
+                                    <img src="agente.png" alt="TESS" className="w-7 h-7 md:w-8 md:h-8 rounded-full object-cover" />
+                                    <div className="bg-white rounded-2xl px-3 py-3 md:px-5 md:py-4 shadow-md text-sm md:text-base">
                                         <div className="flex items-center gap-2">
                                             <LoaderIcon />
                                             <span>Analisando...</span>
@@ -252,15 +250,15 @@
 
                     {/* Suggestions */}
                     {messages.length === 1 && context.candidates.length > 0 && (
-                        <div className="px-6 pb-4">
+                        <div className="px-3 md:px-6 pb-3 md:pb-4">
                             <div className="max-w-4xl mx-auto">
-                                <p className="text-sm text-slate-600 mb-3 font-medium">💡 Sugestões:</p>
-                                <div className="grid grid-cols-2 gap-2">
+                                <p className="text-xs md:text-sm text-slate-600 mb-2 md:mb-3 font-medium">💡 Sugestões:</p>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                     {suggestedQuestions.map((q, idx) => (
                                         <button
                                             key={idx}
                                             onClick={() => setInput(q)}
-                                            className="text-left px-4 py-3 bg-white hover:bg-blue-50 border border-slate-200 rounded-xl text-sm"
+                                            className="text-left px-3 py-2 md:px-4 md:py-3 bg-white hover:bg-blue-50 border border-slate-200 rounded-xl text-xs md:text-sm transition-colors"
                                         >
                                             {q}
                                         </button>
@@ -271,8 +269,8 @@
                     )}
 
                     {/* Input */}
-                    <div className="bg-white border-t px-6 py-4">
-                        <div className="max-w-4xl mx-auto flex gap-3">
+                    <div className="bg-white border-t px-3 md:px-6 py-3 md:py-4">
+                        <div className="max-w-4xl mx-auto flex gap-2 md:gap-3">
                             <input
                                 type="text"
                                 value={input}
@@ -280,15 +278,15 @@
                                 onKeyPress={(e) => e.key === 'Enter' && handleSend()}
                                 placeholder="Pergunte sobre candidatos e vagas..."
                                 disabled={loading}
-                                className="flex-1 px-5 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                className="flex-1 px-3 py-2 md:px-5 md:py-3 text-sm md:text-base border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
                             />
                             <button
                                 onClick={handleSend}
                                 disabled={loading || !input.trim()}
-                                className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl disabled:opacity-50 flex items-center gap-2"
+                                className="px-4 md:px-6 py-2 md:py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl disabled:opacity-50 flex items-center gap-2 text-sm md:text-base transition-opacity"
                             >
                                 <SendIcon />
-                                Enviar
+                                <span className="hidden sm:inline">Enviar</span>
                             </button>
                         </div>
                     </div>
