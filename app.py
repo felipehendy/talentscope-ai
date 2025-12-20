@@ -33,9 +33,19 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'sua-chave-secreta-super-segura-123')
 
 # Database - PostgreSQL em produção, SQLite local
+# Database - PostgreSQL em produção, SQLite local
 database_url = os.getenv('DATABASE_URL', 'sqlite:///database.db')
+
+# Corrigir postgres:// para postgresql://
 if database_url.startswith('postgres://'):
-    database_url = database_url.replace('postgres://', 'postgresql://')
+    database_url = database_url.replace('postgres://', 'postgresql://', 1)
+
+# Adicionar SSL para PostgreSQL no Render
+if database_url.startswith('postgresql://') and 'render.com' in database_url:
+    if '?' not in database_url:
+        database_url += '?sslmode=require'
+    elif 'sslmode' not in database_url:
+        database_url += '&sslmode=require'
 
 app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
