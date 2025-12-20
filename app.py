@@ -32,6 +32,7 @@ from utils.validators import (
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'sua-chave-secreta-super-segura-123')
 
+
 # Database - PostgreSQL em produção, SQLite local
 # Database - PostgreSQL em produção, SQLite local
 database_url = os.getenv('DATABASE_URL', 'sqlite:///database.db')
@@ -40,17 +41,28 @@ database_url = os.getenv('DATABASE_URL', 'sqlite:///database.db')
 if database_url.startswith('postgres://'):
     database_url = database_url.replace('postgres://', 'postgresql://', 1)
 
-# Adicionar SSL para PostgreSQL no Render
-if database_url.startswith('postgresql://') and 'render.com' in database_url:
-    if '?' not in database_url:
-        database_url += '?sslmode=require'
-    elif 'sslmode' not in database_url:
-        database_url += '&sslmode=require'
+# Adicionar parâmetros SSL para Render PostgreSQL
+if 'render.com' in database_url or 'dpg-' in database_url:
+    # Remover parâmetros SSL existentes se houver
+    if '?' in database_url:
+        database_url = database_url.split('?')[0]
+    # Adicionar SSL com configuração correta
+    database_url += '?sslmode=require&sslrootcert=/etc/ssl/certs/ca-certificates.crt'
 
 app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max
+
+# Configurações adicionais do SQLAlchemy para SSL
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+    'pool_pre_ping': True,
+    'pool_recycle': 300,
+    'connect_args': {
+        'sslmode': 'require',
+        'connect_timeout': 10
+    }
+}
 
 # Criar pasta de uploads
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
